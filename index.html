@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sparks Sports — Retention Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Cal+Sans&family=DM+Sans:wght@700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+  --bg:#f0f2f7;--surface:#ffffff;--surface2:#f5f6fa;--surface3:#eceef5;--border:rgba(0,0,0,0.06);
+  --text:#0f1117;--text2:#5a6079;--text3:#9ba3bd;
+  --accent:#0d9e5c;--accent-bg:#edfbf4;--accent2:#10b96a;
+  --green:#0d9e5c;--green-bg:#edfbf4;--green-dark:#086e3f;
+  --amber:#d97706;--amber-bg:#fffbeb;
+  --red:#e03131;--red-bg:#fff0f0;
+  --blue:#2563eb;--blue-bg:#eff6ff;--blue-dark:#1d4ed8;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;
+  --r:16px;--rs:10px;
+  --sh:0 1px 2px rgba(0,0,0,0.04),0 4px 20px rgba(0,0,0,0.06);
+  --sh2:0 4px 12px rgba(0,0,0,0.08),0 16px 40px rgba(0,0,0,0.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;}
+
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:200;background:rgba(255,255,255,0.95);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);height:62px;padding:0 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 0 var(--border);}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(232,68,12,0.3);}
+.brand-icon svg{width:18px;height:18px;fill:#fff;}
+.brand-name{font-family:'DM Sans',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.4px;}
+.brand-name span{color:var(--accent);}
+.topbar-right{display:flex;align-items:center;gap:6px;}
+.top-tab{font-size:13px;font-weight:600;padding:7px 16px;border-radius:10px;border:none;background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;}
+.top-tab:hover{background:var(--surface2);color:var(--text);}
+.top-tab.active{background:var(--accent-bg);color:var(--accent);}
+.loading-bar{height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .3s;position:fixed;top:62px;left:0;z-index:300;}
+
+/* PAGES */
+.page{display:none;padding:32px;max-width:1360px;margin:0 auto;}
+.page.active{display:block;}
+
+/* PAGE HEADER */
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
+.ph-left{}
+.ph-title{font-family:'DM Sans',sans-serif;font-size:28px;font-weight:800;letter-spacing:-.5px;}
+.ph-sub{font-size:13px;color:var(--text2);margin-top:4px;}
+
+/* UPLOAD BOX */
+.upload-zone{border:2px dashed var(--border);border-radius:var(--r);padding:56px 32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-bg);}
+.upload-icon{font-size:44px;margin-bottom:14px;}
+.upload-title{font-family:'DM Sans',sans-serif;font-size:20px;font-weight:700;margin-bottom:8px;}
+.upload-sub{font-size:13px;color:var(--text2);}
+.upload-btn{margin-top:18px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;padding:11px 26px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:10px;cursor:pointer;transition:opacity .15s;box-shadow:0 2px 8px rgba(232,68,12,0.25);}
+.upload-btn:hover{opacity:.88;}
+#fileInput{display:none;}
+
+/* FILTER BAR */
+.filter-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 20px;margin-bottom:24px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;box-shadow:var(--sh);}
+.fl{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;}
+select,input[type=text]{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;color:var(--text);background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--rs);padding:7px 30px 7px 12px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ba3bd' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;transition:all .15s;}
+input[type=text]{background-image:none;padding:7px 12px;}
+select:focus,input:focus{outline:none;border-color:var(--accent);background:#fff;}
+.fd{width:1px;height:20px;background:var(--border);}
+.reset-btn{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:700;color:var(--accent);background:none;border:1.5px solid var(--accent-bg);cursor:pointer;padding:6px 14px;border-radius:8px;transition:all .15s;}
+.reset-btn:hover{background:var(--accent-bg);}
+
+/* METRICS */
+.mg{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px;}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;box-shadow:var(--sh);position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;}
+.mc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;}
+.mc.c-red::after{background:linear-gradient(90deg,var(--red),#ff6b6b);}
+.mc.c-green::after{background:linear-gradient(90deg,var(--green),#34d399);}
+.mc.c-blue::after{background:linear-gradient(90deg,var(--blue),#60a5fa);}
+.mc.c-amber::after{background:linear-gradient(90deg,var(--amber),#fbbf24);}
+.mc.c-purple::after{background:linear-gradient(90deg,var(--purple),#a78bfa);}
+.mc:hover{transform:translateY(-3px);box-shadow:var(--sh2);}
+.mc-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:16px;}
+.c-red .mc-icon{background:var(--red-bg);}
+.c-green .mc-icon{background:var(--green-bg);}
+.c-blue .mc-icon{background:var(--blue-bg);}
+.c-amber .mc-icon{background:var(--amber-bg);}
+.c-purple .mc-icon{background:var(--purple-bg);}
+.mc-val{font-family:'DM Sans',sans-serif;font-size:30px;font-weight:800;letter-spacing:-1.5px;line-height:1;}
+.mc-label{font-size:12px;font-weight:600;color:var(--text2);margin-top:5px;}
+.mc-sub{font-size:11px;color:var(--text3);margin-top:3px;}
+
+/* CHARTS GRID */
+.cg2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.cg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;}
+.cg3-1{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px;}
+.cc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;box-shadow:var(--sh);}
+.cc-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;}
+.cc-title{font-size:14px;font-weight:700;color:var(--text);}
+.cc-sub{font-size:11px;color:var(--text3);margin-top:3px;}
+.cw{position:relative;}
+
+/* LEGEND */
+.leg{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:var(--text2);}
+.leg-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
+
+/* BAR LIST */
+.bl{display:flex;flex-direction:column;gap:8px;}
+.br{display:flex;align-items:center;gap:10px;}
+.br-label{font-size:12px;font-weight:500;color:var(--text2);width:140px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.br-track{flex:1;height:8px;background:var(--surface2);border-radius:6px;overflow:hidden;}
+.br-fill{height:100%;border-radius:6px;}
+.br-val{font-size:11px;font-weight:700;color:var(--text);width:40px;text-align:right;}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;margin-top:14px;}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:900px;}
+thead th{text-align:left;padding:10px 14px;background:var(--surface2);font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;cursor:pointer;user-select:none;}
+thead th:hover{background:var(--surface3);color:var(--text2);}
+thead th:first-child{border-radius:10px 0 0 10px;}
+thead th:last-child{border-radius:0 10px 10px 0;}
+tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
+tbody tr:hover{background:var(--surface2);}
+tbody tr:last-child{border-bottom:none;}
+td{padding:11px 14px;vertical-align:middle;}
+td.muted{color:var(--text2);}
+.pill{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;}
+.pill-green{background:var(--green-bg);color:var(--green);}
+.pill-amber{background:var(--amber-bg);color:var(--amber);}
+.pill-red{background:var(--red-bg);color:var(--red);}
+.pill-blue{background:var(--blue-bg);color:var(--blue);}
+.pill-gray{background:var(--surface2);color:var(--text2);}
+.pill-purple{background:var(--purple-bg);color:var(--purple);}
+
+/* PAGINATION */
+.pag{display:flex;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:10px;}
+.pag-info{font-size:12px;color:var(--text3);}
+.pag-btns{display:flex;gap:6px;}
+.pag-btn{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;padding:6px 13px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text2);cursor:pointer;transition:all .15s;}
+.pag-btn:hover:not(:disabled){background:var(--surface2);color:var(--text);border-color:var(--text3);}
+.pag-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.pag-btn:disabled{opacity:.35;cursor:default;}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(15,17,23,0.5);backdrop-filter:blur(8px);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
+.overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:20px;padding:30px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:var(--sh2);animation:mi .2s ease;}
+@keyframes mi{from{opacity:0;transform:scale(.95) translateY(12px)}to{opacity:1;transform:none}}
+.m-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}
+.m-title{font-family:'DM Sans',sans-serif;font-size:20px;font-weight:800;}
+.m-close{width:32px;height:32px;border-radius:8px;background:var(--surface2);border:none;cursor:pointer;font-size:18px;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.m-close:hover{background:var(--surface3);}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.m-stat{background:var(--surface2);border-radius:12px;padding:14px 16px;}
+.m-stat-l{font-size:11px;color:var(--text3);font-weight:600;margin-bottom:4px;}
+.m-stat-v{font-size:16px;font-weight:700;color:var(--text);}
+.m-sec{margin-bottom:14px;}
+.m-sec-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:6px;}
+.m-sec-b{font-size:13px;color:var(--text);background:var(--surface2);border-radius:10px;padding:12px 14px;line-height:1.6;}
+
+/* SEARCH */
+.search-wrap{position:relative;flex:1;max-width:260px;}
+.search-wrap input{width:100%;padding:7px 12px 7px 32px;background-image:none!important;}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text3);pointer-events:none;}
+
+/* SA TIERS */
+.tier-section{margin-bottom:24px;}
+.tier-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-radius:12px 12px 0 0;margin-bottom:0;}
+.tier-header-inner{display:flex;align-items:center;gap:10px;}
+.tier-icon{font-size:18px;}
+.tier-title{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.06em;}
+.tier-badge{font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(255,255,255,0.2);color:#fff;}
+.tier-body{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:16px;}
+.tier-top .tier-header{background:#0d9e5c;}
+.tier-mid .tier-header{background:#d97706;}
+.tier-low .tier-header{background:#f97316;}
+.tier-critical .tier-header{background:#e03131;}
+.tier-empty{font-size:13px;color:var(--text3);padding:8px 0;}
+
+/* SA PAGE */
+.sa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+.sa-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh);transition:transform .2s,box-shadow .2s;}
+.sa-card:hover{transform:translateY(-3px);box-shadow:var(--sh2);}
+.sa-avatar{width:42px;height:42px;border-radius:12px;background:var(--blue-bg);color:var(--blue);font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+.sa-name{font-size:14px;font-weight:700;margin-bottom:10px;}
+.sa-stats{display:flex;flex-direction:column;gap:6px;}
+.sa-row{display:flex;justify-content:space-between;font-size:12px;}
+.sa-row span:first-child{color:var(--text2);}
+.sa-row span:last-child{font-weight:700;}
+
+/* RESPONSIVE */
+@media(max-width:960px){
+  .mg{grid-template-columns:repeat(2,1fr);}
+  .cg2,.cg3,.cg3-1{grid-template-columns:1fr;}
+  .page{padding:16px;}
+  .topbar{padding:0 16px;}
+}
+@media(max-width:600px){
+  .mg{grid-template-columns:1fr 1fr;}
+  .mc-val{font-size:24px;}
+}
+
+/* ANIM */
+.fade-in{animation:fi .4s ease both;}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<div class="loading-bar" id="loadingBar"></div>
+
+<nav class="topbar">
+  <div class="brand">
+    <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCACYAdoDASIAAhEBAxEB/8QAHAABAAIDAQEBAAAAAAAAAAAAAAYHAQUIBAID/8QAVRAAAQMDAQUDBwYJBgoLAQAAAgADBAEFEgYHERMiMiFCUhQxYnKCkqIII0FRssIVJDNTYXGB0vAWQ3N0keIXJTU2N2NksbPRNEZVVoOEk5Sho8Hj/8QAHAEBAAIDAQEBAAAAAAAAAAAAAAQFAgMGBwEI/8QAOhEAAQMDAQQHBQcDBQAAAAAAAAIDBAEFEhETISIyBhQxQUJRYSMzcYGhFTVicpGxwSTR4TRSovDx/9oADAMBAAIRAxEAPwDspERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQHxT9S+SMApzGIkvqn00qqZ23sS2NRQZouuC04zw2yEscSEv7wrdGZ2zmORWXWf9nx1P45aFy5fppuUW1Rrqx2F/yd4nZEj6Wo45EHreFVLbddaogQyjNz+O3jiJPDxCH2v3slHH3ydeJ15wnHHCyJwiyyJWbNq4vaK3HJS+mdFtp6qni8WvcdPQpTU2G1Ljlk06AmNfrEl6K9VafoUd2buZ6HtZf7KP8AuUip9aqFJxVU7eI9tmUuK76H6IiLEkhERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBEWEBlFhZQBEWEBlERAfNK7lmtd1N6VqtNfrsMERabHiSXOVtsVDlym4rdVrqZNoU4rFJ7XZkdqQ2yRiLrnSP1qCbXbvpOPb2IGoZzzbuXGabijk9y/T6I9Q8yklrtz0Vh6dI+fuDgkWOXm9Fcxamg6ruF7lS7xabn5bIcyc/FyIR8Ij6I9KgpuMltmjtU6Kr2F5arFDujqmZCvZ07fUnOlb7pq66nt9mtGjuN5Q9iUifKzIWx5iLh9PSJKeO3CKzJcbgWm2MtCWLZeTjzKvti1nlwCu18lwnoxMsjGj8Zsm8ic6iHL0RFTNqhVqICOREWIiPeXEdLOklxb2bLbikqV5fsS37BaIshSIzScU0pT5m/t+q5MfFt+O242P5sccVL4EtmdGGQxXICUdt+k26siU1wiIuoQLlopJEisRYox4wUbbHzCr/AKMou7aP69WSe7zKadWLXcyk9SLCLsivMoiwgMoiwgMoiIAiIgCIiAIsLKAIsLKAIiIAiIgCIiAIiwgMoiIAiIgCIiAIiIAiIgCIiAIiIAiIgML4cIBDIq7qJSu/dVVL8obUsu122LZLe4TL1xy4jglzC2PUPtZfCSizJSYrKnFdxEmy0w2FPL7jZat2vacsr5RIlHbnKHsIWKcgl6Rfu5KJFt5lVLcGmA4fpTf7qpkhIeqm5b+DorVcyIMtiwz3GSHIa8PqH1VxC75Okq9l9DzlXSS5Slq2H0pqW9YNt9okuC3dbfLgZVxq4NOKI/2c3wq07ZOhXKIEyBIakR3RyBxsshJcZyo8mJKKNKjOR3hLmbeHEhV+7D9O3jTdmlXG9SShxXx4gxHOWjNPzheEse77yt7NdZT68Hk7vMu7Be5kh7Yvp1/F5Fs1r2/Qs/2KM/y80b/3jtn/ALsP3l7R1Rp47aVxG8QvIhru4/GHh+8ujpJZV4qHW0lsq7FUNxQq/RWiVpWvnoNf2qF02oaH4/DrfGsvFgWPvYqVW24QrlFGTAkMyGi6TA8qVRuSy7uQqlQzLZe4UKpU9nnp5ljt+iizTzb1HNS6w07Yj4dyukdlzz8PPIvdHmWTjqWqaqqbHXm2k5OKxobmWTwRTOO1Rxzuj5t619ltXAdKdNco9MPrLuj6q11j13pS9vUjwLzGceLlFupYkXqiXUvrWGoYtpZoxWUxGNwqCTrxYiG9U9wfiJT1p1WVE9ifX+5nGlIcT7NVMe+p7brdnBlfg+2iL0svr6Q9ZbRgCFgaOYkVB5irRRPTl90qxHd4N+gSXxbJ+Q6Lwly94vV7V+epNV2+nCjhdosOPI88lxzES9VQk3LqzapEhXErlR/36m7bML5FUxp4iRzgjXSE/EB0d9OUqj3SURtFuktXStX49RCPz1Ih5a49PxKR2u5WGJp9ucxcYn4PEeyTxBxKnrfrWmrtG0bOdrAj3hs33eRseGe4ir5ubFaJ9pjzltSZCqJWni0MF3duO2puiqcXYVBTbJrXz0cgdv8As/8AeVj7DdXXrVdbrS8FHLyXg8Pht49WX7ornTp7VdfyW9/Ev+Pm/F9//wBiiWafIemUQtWqTzSwXOU/caNuOVUneXfWv6k7fo3VWou+orFZqgN1ukOITleUXXBHJeCm0DR1P+sdsp/5kF2qpLKVYqVQ9BXLZbVipVCTb93nrRPP5qUqtXZ77abw047bLjGlgBYkTRZYrXXzXOlrK4TM68xQfHqboWZD7I9qKkNoTkpVDJcllCc1KpiSfKqxXf8AVRQ227StFzHOG3fY4l/raVb+0pbGkMSWhejuA6BU30KhdiNPtucitQ1JZe92qlT0fRuUH17tEs+li8mOjk2fX+YZ7vrF3VvNb3j8BaWuF1EcnI7JE2PiLpH4iFcpSX35Uh6TIdJ+Q8XEccLvES6axWdM9SlucqSBc56o2KUcyix5W2jUzhF5LBtkdvu0IScL7S9Vr21Xlp0fwjaYklrxRyJsviyUL07orU2oIpS7Tb+JH6eI44IiXq5dS8WoLBeNPSBYvEByITnSRcwl6pDyrqPs20KrsU45fHeUvW5ifaK1xOltHass2qYdZFrf+cH8oy5yuN+sKkX0LmbZbZtWOX+LdrFEIWWz+ckPFw2XG+8PpezkumPo864u7w2oj+zbVlQ6GBJVIbyUnExSv6KUWd/6Vrbve7XaWeJcZrMca/nC3LQ12j6SrXH8In+vydz91QEsuK5Un124xWVYuOUoS8a9vSv0Wns1+tV4bq5bpzMgafmz7afsW3+hYqTVPMSWnUOpyQrUxkld/wBSx5qV31UduusNP2x0mZNwbq4PU2HOXwqK/JaZTq4rEkNsuOVxbTqSHKv6Fnt/QonD1/peS5wxn0bKv50CFSaLJYksi7HcBwCHfQhLsWDExmR7tVFGbsd5n3icT0LH6qLP0LX3W6wLY1xJkptkfSJbXXW2k5OKxNaUqUrRJ7t/6k30/Qop/L3TGWPl5/r4Ln/JeiRrHTEaO1IkXqGw09QuHV5zh5Y9XV6wqOzcYr9cW3KVNvVHv9tT4uGuNIQZr0GZfoTMlosXGyc5hJftZdWaYvMzyK1XiJMkiOVW23Mix/glzHtClRp2ubzLivC9HekZNuNlylyrebDbrAs+tzl3KUzFjlDcb4jxYjlkKiJuSlPbNSeE7B7omhuB1hKlZY64nUNN+/zIosGvtGmQiOpLZkRY/wDSRUmJwKN5kQiP1q3SpKuU4xbLiOdOh9l5kHzKKXDX2lYThNHdQccHsIWWyc+yvq2680vNMWgujbbhdIvCTf2lmbuoSsctmrT4ErRfAuAYCQVyEvqX2vhF7AiIgCIiAIiIAiIgPmlFQ3ymoD/4TtF0xImdxRyr3RLqH73uq+C347lptUWq2XmzSIF2bbKMY14mXLu9LLu+soFxi9ajqbK26w+uRVNZaanHjm+le0lYem9rupbRHaivsxZzQDjTiUxcx/WK/a77JribVJ+lJse8wHOZmmQi5j9kvh9VQi82G9WnKtxs02II/wA44yWPvLgUNTrcrJO48uTHuFqVknWnrTsLctW0rRd+u0GVqOzDClxS3syHB4otl61Ob3h9JWZqWTGl6Luj8d5t5k4L1WzbLIa0wJcjUruypWm8VYWyTUDzNvvmnnzIortvedj5F+Tcx5hH0S6v2K3t17U5VTbyebvL+0dJFuKUy+mnF4iuqU34r9nHnjjtxnH3DZbIuG2RcokX3l+Yeb9iun5N9kt77E+8yW6PSgc4LeQ/kxxEuX1sh91UUGKqXI2WWhzdthuT5ewSrQpYuXk6S9JSfZ1qubpG+NyAMihPFulMd2o+L1lb3ygrBb3dGldwZbGTEcb3GI8xCRY45eHmy9lc9OUrXcpEqO5apScVEidFessxKUq9TpPbFrYtP6YZC1OCU24jjHMaZYj3nPiH3lzc+4466TzzhOPEWROEWREpJrWa/KY04LtSIWLQ2I5esQ/ZEVrtF25u7aptlskU+ZkSBbc9IVsuUtyZISnw7tDbeZrtylJQnl3afM1Vdw4uBkOJcpD3V7rvd7rc6tHcJr0qrY4gThfxzekuuHbPbPwRW21gx/JOFhwuHTHH1VyZqiE3bdRXG2tERMsSnG26F1Y5L5dbSuClKsssjbdrQ/amk4uapV2m+2ZVZh0vNyqTThx7e5vil1ON5CRfFiPtKO366zrxLrNmO5VLobHpbH0VtNCFSo6h3f8AYcjf/aKjfbu/Qqp1miUpd8VSFJnOdSaYTwp7/U9si4zn7fCtzrxViRMuE10jTIssvW5lJdj9u8v1zGKg0IYjLj5eyOI/EQrcbJdnUfV1ukXG5ypLMdt7hA2yVBIiHvZeHmVo6N2eW7SEi4TIkmRIKQxgIvVHJv2h8XL7qvrfapLykPucpZ2uySnqokucpzL3FY2yPV0PSNnv05+lHH3qtCxHEuZ4ub+MlXG7kpVZGm6vaqViSqI9Vae0oIkxUJ/at81NTY3y6Tr/AHJ663J+jrzvZTwiPhHwqQ7NdCTdYTt5ZR7Y0X4xJx6vRH0vsrRaUj2uZf4Ee8SCiwHHMXDHu/ujly5d1dc2mBDtsJmHb2GmIzY4tttjyiKu7LA6+4p55XYdD0ftX2m5WQ+rWia8pTO2K9FpO3QtFab/ABBomeI+43TEuH4RLxFiWRKn4MOVOltwobJPPuluoA94lcHyj9NTXZcXU0VknWm2fJ5GI/k+beJerzEqZivPRZDciM9Vl4CyFxssSElHvVHEy9HOXuIvSLaJnYucqeynoba/aYvtjGjt4tEuKzX+c3ZD7w8qsHYBbNROXOs+NMfjWMOU2y5hfLwiP3vZWks+1jU8ZukW5NxbvGryuNyGsSIfWH7wkrb2W6203f4o2u2xwtkplvshFiO4fRx6hU+0sQ1SEqbcr+UsrJGgqlpUy7VP4am92oW5666CusGOOTxMZNjTvEPNj8K5a867N+jtVRa82TM3Oa7ctPvNQn3CycjuD8yRd4hx6S94fVXrnR27Nw8mnuVR1l2gKfxcb5kkI0HtKuelrfS3FCZmxBIibEnOGTeXN1eFTSu1XSF6ZGJqGwyQbFwTxcbGQ1kPT/GKrm5bP9ZwKkLlgkvCP84wQuZe6o5MYfhvExMYcjPD3XhJsviXQqtlsmqzbrxfhqVKZcuOnFXL60OsNN3W0Xi3Ny7NLjSYvTvZLp9HHu+qtTtD1QGnbTRxkBcnP/Nxwr5t/iL0VzZobUs3SuoY9zjOFwMvxtkS5Xm/3h6lZO1+eUzV2Ilk0zHb4ftc33hXMyLL1WUlKq5JrvF0v1W7epxvhV2fqRWdMkzpRS5kkpLxdROF/HKvOtnpS1DetRxLbUiEHnPnC9Eeb3uVXrTR+nKQPIqWiJQMfPw+b3vOt8ma3GUlOJxdqsUi7pU9l+vfU57hyZMOU3JivlGeb6XGyV67N9VU1JbCGTiM+LyviPe+ohVP60tI2LU8y3MkRNjiTZF4S5v7q92y+a5b9ViQdLkZ4SHxYjxPtCtVwbbcjKep4U5Eno/LkwbmmKrlUrGqfXzJPtS1hIcmO2W1vVZZb5ZDzZc1S8KrpZJ10yJ1wsnHCyIi7yn2yjTMG6DIuU5oX22XeG2y5zDljlkXi6hX58cVIvk7Cij9SITHtETPH/NSvlvNJ6kn6bncSOROxXPy0ci5S9IfCSs/XGj7TMsb70WIzFlMNE4240OPTzY+qqH47hc2RD4RFZSrfKs0hKkqEOYxdmVJUn40Ok7hf4rOmPw0yQuNONCbPpZdKqabLkT5RSpThOOEXMRd3+6v1sdwfk7N2ozhcse5k2Pq45feJeGv1rR0ouz01xtvsTp9Spt0JuOpXnlp8jxTBAXhx7wrT7Rf829PevM+02ugLJpyzs2lgHLfHeImxyJxsSIl8ztF6amDHB+zxXQj1ImaEGQhUurl9kV0Vi6MSIvtFK5kmpHSBlmQlWPCmpyUsEQj1fEpDtHbbY15e2GWxbZGViItjiI8qkfyf40aTr42pDLbzfkbhYuDl3m1ZIYye2f4j0V+5JZgdbx8OuJXsV1ryhnmH8oPe9JXjte1DIfu/wCAWj4cZgRJ4RL8oRc3N6OOKtUrHZ6dtLZE/VwRVO7YbXIhavduJNlwJoiTZd3IRxIfhy9pdLChqj5cWWpxse8R7vPb2iccaV0+O4iEeNKlPjGiMuPOF0i2ORLMyHLhucCbFeZPHLF4cftL9bTPm2qW3MgO8F8OUSxy/gVJS19JmGxW9WeBcqMFxGyKmBD6Xapx0Ep2Y057NtKk/Uk2xhzUNMmX47hWkh+ZccLoL0fEKtSta7uxRTRGsbPqhomolCjymx+cjudQ/vCpTXdj519PLrqtxcpSnEYq8j9EWFlYleEREAREQBERAfJKgtu2uZcqc/pO3Vcjx2q4zHKjiR+iPo/a9XqvytVC9pGz+1awj0N6nk09unzUlseanol4hVddGXno6kMK0UVF5jyJEVSGFaKKA0Pry+aQPhQDGTDIsijPdPsl3VYju26DKhkErTL1XSHo4wkBe1ioVfdlmsrU4RN20Z7H5yMWXw9SjxaW1Pv4f8nbxSvh8lcXFofuUVOzrrocA3Ku8FOxxVj601NdLd48mQ82w2y244Tgtj0t5d31RUp2VQH5Nxu0oRLgxrXIqRekQ7h+97q9Ontl2sLuYm5Bpbo2Xa5JLEvd6vsq5Y+krXpLZ7dIUMSJ0ortX3iHmdKrZLZbbU+pzbOJxTTeZ2mxSHHNu8nFNN5y/wCFTzZPr2mj3pMebHdkQJJC4WFOZsvF6WX3VBKD2VUk05o29aissm42gRecYe4ZR8sSLlyyEi+yqyGt5L+THMVNvVIbk5RuahLNqu0drVdnC02uLIbjVcE3nHcd7mPdxH3vZVYlTKogI5kXKIj3lvR0hqyj/A/k3cyL+rlj7ys3ZdsplwrkzetRg02TNc48WhZYl9BEX3VOpGmXOT7RJY9UuF4lZPpr+hF9qumZFlg6YfdDlpbhiv8AouDzfeL3VBrRNetdwjT42PGjPC83l05CutNYadt+prG/abgFMHKbwMepsu6Q+kudtSbNdW2N4mhtjlxj/wA3IjDll7PUJKXdrS8y9R1lOqf7Ey+2ORHfo9HTknd2d2hYVduNo/Be+lpmVm4bsOXHL1v7qpK5yHp8yRcJR040hwnHKD4i5lIrFs51dd5Itt2WTFby5npQ8MR9kuYvZWbrs51dGuEhlmxypDLbhNtvYiPEEe8ocxVwmJTtE1xp6EKeq6XBtNXUqxT6Hj0LXGmofp/xHI/30UfpTs8+5WJo/RGrYw3njWSU1xrQ8032jzmVRxH1uyq0H+D7Wfm/k5M+FR3YUjYp4a/oQ34EpTLadmr9C5vk3dmhHq/7a591WTOrSkN31CUE2CWi42fRhxrpFciyCluFwz8PKp7NEnYbg06qgW5d7ASpMJCVc2J6fbW1ItyEqTxYnFPaQUUo0Vo2fq6PcnrcYC5AbEhbL+dIu76PSXwrFdn+tN27+Tcvs/SKtf5PVgvdjreSusA4tHuDRvid7HifvCuKt9tU9JxeTXHeed2uzOPTaIfbqlKtSgybIKmLgkBAWJCQ4kKvXYPrkpzTWmro9TymOP4q4RflG/D6w/ZXi20bOp0m8VvunIVXylFjKjt405vzn8d5QCHofXcWW3Lh2Kc28yQk24NR5SFSIzMq2zOFNap/glxo86zTlYpUpPp30OhtoGrbRpa1k/cjFwzyo1HHqdqqdaf2V6pb4k9hzTU9zr4LuIZejy4/CK2uodA6g1nEbv5suQLzgLb8SWXzdSHvAXdH9Cr246F1fAcJmTp24Vx/MN8YfhU65ypSnNdlkj4Fjd5kxTuSmMkfDU/DWNrtdnuIxrTd2rqwQcTihWleH6Jbl+2zY5Aa9sdI2XGrMHfj4e98OSW3RWrri8LMXT88MvOTzPBEfaJXRsp2aU03I/DF2cbkXKo4hQelka/RTxF6SrIFukPyEuJTinUp7ZapUqYlyjeKctSealvsDTtmdulzq5SMzuyqDdSKm9UZq/bRfbgRMafZG1R8vyjgi48X3R+L1lf91gRblb3oE1oXo74EDjZd4S865019sov9iluSLKw5drYRcvDHJ5v1h73rD8K9hsaYKlKTI5u7XsO+uapSU+y7Ca2HbhanYYDfLfLjSRpzFHDiNl94VBtr2ubdq+sKPbLc62MYic8oeERIsu6OPd7ygD7TrBE2804w4PULg44+8vRa7Zcbk6LNsgS5pl3WWyJdOxaYUZzbpr/yKNydJeTslUPKLTr5Cw2JE44XDER7xErO18BRdVOQnC+cjxY7frYtipPsk2WP2uYzftRi35YHNGjCWQsl4i9L1elRnbGRM7R5xD9Dbf2RUCVcW5MvBvelKe0p79EVHtubniVQ1lmmvWu4x58XHjRyyHLveL2S6VadNq9trB4lYMuknH8ny4+8qeiH5U5gyLhOY5cMRyX6d7HveHvKK9FaeVko5y13eXBbUljlUe+93KTeby/cZVRF54umvd8I+ypJsitJT9QPySEqsR4pUrX6ycHEfhyWr03pG+310ax4bseOXU++OI/3vZV4aUsUPT9qbhxRy3czhl1OF4lBnymksqZR4txfdG7PJkTEzHaKpRKst/ec8Twcts1+3SmyF5hwmy9LHp97qW92fa1d0zMkNSIxSIcghIhbLmbLxKxdpGgQ1BSlwtpts3FscSy6XR9L0vSVL3e03S1vEzcIEmIQ/nB5S9rvLxGTbpFnlbZnlP0nGlxbpG2bvN5Fia32nxrhaHYFjjyBJ9vhuPOhjiJdWPpKsFmMw7JIW47Djzhcoi2OWXuqxdA7NZsyQ3cNQMlGhjzDFL8o563h+0sFUmXmQnX/AMNqKwrQyrT/ADU+oFsct2ze3OvBi5MmFIxLuiQ8vwiK1ZdBUVk7UIrh2aI2ww45QXuyjY5Y8pKAlAn8Iv8AFsv/ANElUdIbc61PwbSpSU6FbBmUcZUtfirUuu2f5Pi/0Y/ZXqr/APi8lsoQwY4lykLY5U9lev8A5L2OP7lPwOMXzVOSdrbPkW0y9tOcpOPC4OXhIRX4bNtWR9J6uYub7Lj0bhky9hzEIl3h9oRVzbbdnUjVbbV1tFBpdYreGJFjR9vf05d2vV7y51u1tuNrfKPc4EuE6PdebIVRSI7kd7aJ89T1i0TYlytyY7iuLHGtDo+Vts0U0235O9LlvOFjRtuOWXxYqU61vemrdb+HfXGXG3B5WCHInPVFch2ph+VOjsRWHJLhODytiThFzeiugdqOz6fIlnfbIBSCep+Mx+9l4h/dVzAkKeyyObnWKDDltN7THLXf+x5rRE2fakbNxuS9ZJIkXzL0gfeHLq9lQ3VkWHa7qUS3XBu4NCP5VvpH0fW9XxLTyWH4xE1MYcYcHqbeHHH3l9QYsmY8LMSO9JcLustkX2VOOmjRaRlKc2+SPKu/6m72bvvxtdWg2SKpE9wyx8PeXSg13U7KbqUoqt2UaCl2yXS9XkRbkCP4szllhl3i9L0Va47603b96+1qcJ0nmsy5fsd+NNNTKyiLA54IiIAiIgCIiAIiIDCYh4RWUTQaHxXs7Po3LTa1/wA1Lr/U3PsktyXn/YtNrX/NS6/1Nz7JLU/7tRHke6V8Djr6KK+/ku/5Eu39ap9mioT6KK+/ku/5Eu/9ap9mi8/sH+vp8zzDov8AedPmXLjTwim6iyi9F0PVzCzjREQDGixWlK+eiyiAws40REBhZREBjdT6lmg0p5kRAYWcafUiIDCY08IrKIDGNKd0UWUQBYWUQH5OsMOU522z9YclkG22xxBsRH6hFfosJnU+aUPmnmXN+2r/AEiT/wCjZ+yK6Qp5qrm/bV/pEn/0bP2RVjafffI4zpx93p/NQ/PYxSldo1spX6eJ/wAMl0aTDQFU6tjv3efFc57Gv9I9r/8AE/4ZK8NpF6pYdF3O40PFxtiot/0hco/EQr5eHaNKy9CP0OU23bVuK8Kq/saqJtJ0k9qQbAxMOkirnCE+H82TnhyU13U+unauQafgxjSUSQxLH8NtzauEIiWQhjXHm6eoaF7S6gtd2rdNENXiGGTj0TjNt08WPT/auTt1zXJorPTJJb2e7OSc0uacO+mnkavVm0rSunZVYUyYTskepmOORD63hWy0pqqxarim/aJVHxHlcbqOJB6w1VP7B7RYr69d518ZYnS6ODuGSGWOWREXN1ERd5WnpHS2k7Lc50uwtsBJMuG/UHcuH3uHQe6PexWUSQ/KrRascfLvN1vmzJNUu8OFe7xG11FebTpm1u3G4mDEcfNjTmIvCI94l49GaysurGHXLQ+4VWuVxtwcSDLp5VWnykLq29crLp8n+G1lx5B+ES5RP2eYv2LWbNbra7btkeZs8gCtVypwwqNMQyxyp8QkPtLQu5bKZsk6Y7qGh++KTP2FeXWifXWpd2qb1b7BZ3brcyrSK1jliO/qLH7yikXa5od5yjdZ7jFfE5HLFfe32lP8GVx3eJr/AIgqE2LTGlpexULncIsZmX5O6ZSREaOZCRY83e6R5Vsmyn0yaoax3J13m6dcJTUqrTWmlE5by6ocqNMihIjOi60Y5CYFkJUUV1PtH0xp26Fa7hNLykMeIANEWOXiUV+TRJlPaWnMvERMx5WLPo5CJEPvVqXtKCazGWW2K8eR2pm6yOJyxnm8xqPDHmWMm6OJituoTvVU0Tb04iG0+hPEuuheGjNd2LVch6Na3nXHGRyKhskK/XXGprJpm3jLvVKcIyxAKN5EReqorsYbuQvXJy5aVt1krQW+G5GYo2T3Vll293l95Rz5QphcNWabs1a1xcMuII/6wxEfsktzsx1uFtfESnLi8zA29OYsqxak09M0u5qGA403b2xInSwx4ePVlRfjovXmn9WPyI1tfPjMjkTZt45D4hVCndDsGltU6PJwsynDRke8Q5c3wtj7y3+y+EWm9sbFmcIqG9EoBZeKrQuF8QkoLV3dU43THh7FfErm+kEh15qiqc3Cr8xbuqdY6esd3i2u70q2/KEeGRM72yyLHq/WmrNW6f0f5L+E60Z8qy4YtNZVrj1dPrUWg296ZcvOkKTYrNXZduLiCIjzEHeH73sqvNFUuO0bX9skXFsiiWiO3V8i6SIen2ic5vVFTJFwfbfqwlPbpj/JNmXaUzI6smm9WmP8nRjDvFZFzEgyHLEuoV+qwFMQpRZV3Q6GgREQBERAEREAREQBERAEREB8+deC9wqXC1S4XE4flDJNZeHIcVsKLKxUnJOJipOScVFDV2CyadlNTBWn9S//AKKfbLdDu6LhS4xXDy3yh3idjPDx5cfEpxu30SlN30qBHtcWO5tEJ4isi2SHFc2rSdFH2iIrEtQiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgPjd271WWtdmDuodRvXgLwMajwiNW6x8ukcfErN3diU/X+xbG3FNqySQp0Bmc3sn06pKv0dswdsGo413K8UkUZqW5ukfGlchx8X6VINpulH9YWRu2NXLyAaPC44XB4mdKd3qH+KKYd1N25a5VetJrR00xrRFjMKYbTwqK2l7JtNnp4raxFbbm+T8LyvDmy/ObsvFzKQbPtOv6X0yFlfn0m0aIuG5w+HiJd3z+LJSilalvrv30WK13U3foURuCy2rNtOlTa1b47K8206V7Co9SbHxl3h26afvD1odeyJwBAiHIurHEhx9Vb/Zps9iaPKRMcmvTJ8gcXXS5Rx6un95T/AHbxQqcqwbt7Dbm1SniMGrXGZe2qU8RWtz2bRrvrw9RXaaMyGQ7vIqs7h6cac2XtLz3nZPAcvluuWn5LVn8kdF2gizVwTISyHfzK0d300WeynZRfFW2Orw9+piq0xFVrVSO/IjWv9NHqnTMmzeVeTcbH5zh5bsSEun2VXTOxB6rbcaZquW7DEsuC2ziP/wAkQj7quqtKbu3zp2Uoki3R5Cs1p3mUi1xZK9o6nWppdMWKDp20s2q2tUbYa/aVa/WSgWrtlTl51O/fLffnra+9uq5QW8u3HHlISHwq16dlFjsrRbHoTLzaW1J4aGyRbo8htLa08KSAbOtC3DS1wkS5uoZN0o8zw+G4JcvN1cxEsai2fFedoEHU7tz4TcPh7o3ByyxIi6svESn9aeff9Sebs+qidRa2aW+6h8Tb46W0tY8NN5WmpNlkK8a6a1C5OcbYJxtyRG4eQuEO76e70j/Yvdcdn/lW0eHq5m58CsfHKPRn8piJD1ZeElPa181KL639vYsKW9jfw9+ph9mRda8Pfl8z8ZDVHo5t1ruzGo0UK2W6CLRbc6h3Kk4pJDXLg8PHdl6XpKdUpzb61SlKUpVb1MNrcS5WnFQkLjtuOJdVTiT2H2soi3kkIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAsLKIAsLKIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiA//2Q==" style="height:36px;width:auto;" alt="Sparks Sports Academy"/>
+  </div>
+  <div class="topbar-right">
+    <span id="lastUpdated" style="font-size:11px;color:var(--text3);margin-right:6px;"></span>
+    <button class="top-tab active" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="top-tab" onclick="showPage('students')">Siswa</button>
+    <button class="top-tab" onclick="showPage('sa')">SA Performance</button>
+  </div>
+</nav>
+
+<!-- DASHBOARD PAGE -->
+<div class="page active fade-in" id="page-dashboard">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">Retention Command Center</div>
+      <div class="ph-sub" id="dbSub">Memuat data...</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="upload-btn" onclick="loadFromSheet()" style="font-size:12px;padding:7px 16px;background:var(--blue);">🔄 Refresh Data</button>
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()" style="font-size:12px;padding:7px 16px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);">📂 Upload CSV</button>
+      <input type="file" id="fileInput" accept=".csv" onchange="handleFile(this)"/>
+    </div>
+  </div>
+
+  <div id="uploadSection" style="display:none;">
+    <div class="upload-zone" id="dropZone" ondragover="e=>{e.preventDefault();this.classList.add('drag')}" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+      <div class="upload-icon">📊</div>
+      <div class="upload-title">Upload Retention Database</div>
+      <div class="upload-sub">Drag & drop file CSV di sini, atau klik tombol di bawah<br/>Format: All_Retention_Database_Compiled_Retention.csv</div>
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Pilih File CSV</button>
+    </div>
+  </div>
+
+  <div id="dashContent" style="display:none;">
+    <!-- FILTER -->
+    <div class="filter-bar">
+      <span class="fl">Filter</span>
+      <select id="fBranch" onchange="applyFilters()"><option value="">Semua Branch</option></select>
+      <select id="fAgeGroup" onchange="applyFilters()"><option value="">Semua Usia</option></select>
+      <select id="fRetStatus" onchange="applyFilters()"><option value="">Semua Status</option></select>
+      <select id="fPkg" onchange="applyFilters()"><option value="">Semua Paket</option></select>
+      <select id="fMonth" onchange="applyFilters()"><option value="">Semua Bulan</option></select>
+      <div class="fd"></div>
+      <button class="reset-btn" onclick="resetFilters()">Reset</button>
+    </div>
+
+    <!-- METRICS -->
+    <div class="mg" id="metricsGrid"></div>
+
+    <!-- CHARTS ROW 1 -->
+    <div class="cg3">
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Retention Status</div><div class="cc-sub">Distribusi status semua siswa</div></div></div>
+        <div class="cw" style="height:180px;"><canvas id="retStatusChart" role="img" aria-label="Donut chart retention status"></canvas></div>
+        <div class="leg" id="retStatusLeg"></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Churn Reason</div><div class="cc-sub">Top alasan churn</div></div></div>
+        <div class="bl" id="churnBars" style="margin-top:4px;"></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Age Group</div><div class="cc-sub">Distribusi usia siswa</div></div></div>
+        <div class="cw" style="height:200px;"><canvas id="ageChart" role="img" aria-label="Bar chart age group"></canvas></div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW 2 -->
+    <div class="cg2">
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Siswa per Branch</div><div class="cc-sub">Total & status retention</div></div></div>
+        <div class="cw" style="height:260px;"><canvas id="branchChart" role="img" aria-label="Bar chart per branch"></canvas></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Paket Berlangganan</div><div class="cc-sub">Distribusi jenis paket</div></div></div>
+        <div class="bl" id="pkgBars" style="margin-top:4px;"></div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW 3 -->
+    <div class="cg2">
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Churn Categorization</div><div class="cc-sub">Kategori final alasan churn</div></div></div>
+        <div class="cw" style="height:200px;"><canvas id="churnCatChart" role="img" aria-label="Bar chart churn cat"></canvas></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Final Verdict</div><div class="cc-sub">Addressable vs structural vs uncategorized</div></div></div>
+        <div class="cw" style="height:200px;"><canvas id="verdictChart" role="img" aria-label="Donut final verdict"></canvas></div>
+        <div class="leg" id="verdictLeg"></div>
+      </div>
+    </div>
+
+    <!-- COHORT FP TIMING CHART -->
+    <div class="cc" style="margin-bottom:20px;" id="cohortSection">
+      <div class="cc-head">
+        <div>
+          <div class="cc-title">FP Timing — Cohort <span id="cohortLabel">—</span></div>
+          <div class="cc-sub">Distribusi kapan siswa cohort ini melakukan FP (M-3 hingga M+3)</div>
+        </div>
+        <div id="cohortStats" style="display:flex;gap:12px;flex-wrap:wrap;"></div>
+      </div>
+      <div class="cw" style="height:260px;"><canvas id="cohortChart" role="img" aria-label="Cohort FP timing chart"></canvas></div>
+      <div class="leg" id="cohortLeg" style="margin-top:12px;"></div>
+      <div id="cohortTable" style="margin-top:16px;overflow-x:auto;"></div>
+      <div id="cohortBranchCharts" style="margin-top:20px;display:none;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Retention Rate per Branch</div>
+        <div class="cg2">
+          <div class="cc" style="padding:16px;">
+            <div class="cc-head"><div><div class="cc-title" id="branchM0Title">M0 Retention Rate</div></div><span id="branchM0Rate" style="font-size:13px;font-weight:800;color:var(--green);"></span></div>
+            <div style="height:200px;"><canvas id="branchM0Chart"></canvas></div>
+          </div>
+          <div class="cc" style="padding:16px;">
+            <div class="cc-head"><div><div class="cc-title" id="branchM1Title">M+1 Retention Rate</div></div><span id="branchM1Rate" style="font-size:13px;font-weight:800;color:var(--blue);"></span></div>
+            <div style="height:200px;"><canvas id="branchM1Chart"></canvas></div>
+          </div>
+        </div>
+        <div class="cg2">
+          <div class="cc" style="padding:16px;">
+            <div class="cc-head"><div><div class="cc-title" id="branchM2Title">M+2 Retention Rate</div></div><span id="branchM2Rate" style="font-size:13px;font-weight:800;color:var(--amber);"></span></div>
+            <div style="height:200px;"><canvas id="branchM2Chart"></canvas></div>
+          </div>
+          <div class="cc" style="padding:16px;">
+            <div class="cc-head"><div><div class="cc-title" id="branchM3Title">M+3 Retention Rate</div></div><span id="branchM3Rate" style="font-size:13px;font-weight:800;color:var(--amber);"></span></div>
+            <div style="height:200px;"><canvas id="branchM3Chart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STUDENTS PAGE -->
+<div class="page" id="page-students">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">Data Siswa</div>
+      <div class="ph-sub" id="studentSub">— siswa terdaftar</div>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <span class="fl">Filter</span>
+    <select id="sBranch" onchange="renderTable()"><option value="">Semua Branch</option></select>
+    <select id="sStatus" onchange="renderTable()"><option value="">Semua Status</option></select>
+    <select id="sAge" onchange="renderTable()"><option value="">Semua Usia</option></select>
+    <select id="sMonth" onchange="renderTable()"><option value="">Semua Bulan</option></select>
+    <div class="fd"></div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="sSearch" placeholder="Cari nama / ID..." oninput="renderTable()"/>
+    </div>
+    <div class="fd"></div>
+    <button class="reset-btn" onclick="resetStudentFilters()">Reset</button>
+  </div>
+  <div class="cc">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('branch')">Branch ↕</th>
+            <th onclick="sortTable('name')">Nama Siswa ↕</th>
+            <th onclick="sortTable('age_group')">Usia ↕</th>
+            <th>Kelas</th>
+            <th onclick="sortTable('ret_status')">Status Retention ↕</th>
+            <th onclick="sortTable('pkg_type')">Paket ↕</th>
+            <th>SA Retention</th>
+            <th>Churn Reason</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="pag" id="pagination"></div>
+  </div>
+</div>
+
+<!-- SA PAGE -->
+<div class="page" id="page-sa">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">SA Performance</div>
+      <div class="ph-sub">Performa Student Advisor per branch</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select id="saMonth" onchange="renderSA()" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:6px 28px 6px 10px;cursor:pointer;appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'12\\' height=\\'12\\' viewBox=\\'0 0 12 12\\'%3E%3Cpath fill=\\'%236b6b63\\' d=\\'M6 8L1 3h10z\\'/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 8px center;">
+        <option value="">Semua Bulan</option>
+      </select>
+      <select id="saBranch" onchange="renderSA()" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:6px 28px 6px 10px;cursor:pointer;appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'12\\' height=\\'12\\' viewBox=\\'0 0 12 12\\'%3E%3Cpath fill=\\'%236b6b63\\' d=\\'M6 8L1 3h10z\\'/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 8px center;">
+        <option value="">Semua Branch</option>
+      </select>
+    </div>
+  </div>
+  <div id="saTiers"></div>
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal">
+    <div class="m-head">
+      <div class="m-title" id="mTitle">Detail Siswa</div>
+      <button class="m-close" onclick="closeModal()">×</button>
+    </div>
+    <div id="mBody"></div>
+  </div>
+</div>
+
+<script>
+// ======= DATA =======
+let ALL = [];
+let filtered = [];
+let sortKey = 'name';
+let sortDir = 1;
+let currentPage = 1;
+const PAGE_SIZE = 50;
+
+const BRANCHES = ['BDM','BSD','CKR','HIB','KGD','KLM','KMP','KWC','MRG','PJR','PJT','SBG','SBK','TGC','TJD','YGC'];
+const BRANCH_NAMES = {BDM:'Bandung Melong',BSD:'BSD',CKR:'Cikaret',HIB:'HIB',KGD:'Kelapa Gading',KLM:'Kelapa Lima',KMP:'Kampung Melayu',KWC:'Kawangkoan',MRG:'Margonda',PJR:'Pasar Jumat',PJT:'Pasar Jumat Timur',SBG:'Surabaya Gubeng',SBK:'Surabaya Kalianak',TGC:'Tangerang City',TJD:'Tanjung Duren',YGC:'Yogyakarta'};
+
+const STATUS_COLORS = {
+  'Paid retention':'#1a7a4a',
+  'Paid retention - DP':'#2e9d5f',
+  'Confirmed to retain (not paid yet)':'#5dc48a',
+  'Churned':'#c0392b',
+  'Confirmed to churn (still possible to retain)':'#e8744a',
+  'Not yet been asked':'#b85c00',
+  'Not yet asked':'#b85c00',
+  'Asked - still no response':'#f59e0b',
+  'Still unsure':'#9b59b6',
+  'Move to other center':'#3498db',
+};
+
+function statusPill(s){
+  if(!s||s==='#N/A') return `<span class="pill pill-gray">—</span>`;
+  if(s.includes('Paid')) return `<span class="pill pill-green">${s}</span>`;
+  if(s.includes('Churn')||s==='Churned') return `<span class="pill pill-red">${s.length>20?s.slice(0,20)+'…':s}</span>`;
+  if(s.includes('unsure')||s.includes('response')||s.includes('asked')||s.includes('Not yet')) return `<span class="pill pill-amber">${s.length>22?s.slice(0,22)+'…':s}</span>`;
+  if(s.includes('retain')) return `<span class="pill pill-blue">${s.length>22?s.slice(0,22)+'…':s}</span>`;
+  return `<span class="pill pill-gray">${s.length>22?s.slice(0,22)+'…':s}</span>`;
+}
+function agePill(a){
+  if(!a||a==='#N/A'||a==='') return '';
+  const m={'3-4 YO':'pill-green','5-7+ YO':'pill-blue','24-35 MONTHS':'pill-amber','12-23 MONTHS':'pill-purple'};
+  return `<span class="pill ${m[a]||'pill-gray'}">${a}</span>`;
+}
+function churnPill(c){
+  if(!c||c==='Uncategorized') return '';
+  if(c==='Retained in Sports') return `<span class="pill pill-green">Retained</span>`;
+  if(c==='Churned'||c==='Move to other activity') return `<span class="pill pill-red">${c}</span>`;
+  return `<span class="pill pill-gray">${c.length>18?c.slice(0,18)+'…':c}</span>`;
+}
+
+// ======= GOOGLE SHEETS LOAD =======
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeIA2oXKEneJoX7243gCkDS7uU1YZIZK8BzcLuJDrqsmpSp0TbvyKdvZrxbzq2rzG4ac8kX6BtuJHx/pub?gid=398767044&single=true&output=csv';
+const PROXY_URL = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(SHEET_CSV_URL);
+
+function loadFromSheet(){
+  setLoading(10);
+  document.getElementById('dbSub').textContent = 'Memuat data dari Google Sheets...';
+  Papa.parse(SHEET_CSV_URL, {
+    download: true,
+    skipEmptyLines: true,
+    complete(res){ processRows(res.data); },
+    error(){ showUploadFallback('Tidak bisa memuat dari Google Sheets. Coba upload manual.'); }
+  });
+}
+
+function showUploadFallback(msg){
+  setLoading(0);
+  document.getElementById('dbSub').textContent = msg;
+  document.getElementById('uploadSection').style.display = 'block';
+}
+
+// ======= FILE HANDLING =======
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if(file) parseCSV(file);
+}
+function handleFile(input){
+  if(input.files[0]) parseCSV(input.files[0]);
+}
+
+function setLoading(pct){
+  document.getElementById('loadingBar').style.width = pct+'%';
+  if(pct>=100) setTimeout(()=>document.getElementById('loadingBar').style.width='0%',600);
+}
+
+function parseCSV(file){
+  setLoading(20);
+  Papa.parse(file,{
+    skipEmptyLines:true,
+    complete(res){ processRows(res.data); },
+    error(){ alert('Gagal membaca file CSV. Pastikan formatnya benar.'); }
+  });
+}
+
+function processRows(rows){
+  setLoading(60);
+  ALL = [];
+
+  // Find header row and build column index map by name
+  let headerIdx = {};
+  for(let i=0; i<Math.min(rows.length,10); i++){
+    const hasHeader = rows[i].some(c => 
+      c.trim().toLowerCase().includes('churn reason') || 
+      c.trim().toLowerCase().includes('retention status')
+    );
+    if(hasHeader){
+      rows[i].forEach((h,j) => { 
+        if(h.trim()) headerIdx[h.trim().toLowerCase()] = j; 
+      });
+      console.log('Header row found at index', i, headerIdx);
+      break;
+    }
+  }
+
+  // Helper: get col by header name, fallback to fixed index
+  const col = (row, name, fallback) => {
+    const idx = headerIdx[name.toLowerCase()];
+    const val = (idx !== undefined ? row[idx] : row[fallback])?.trim() || '';
+    // if header not found or empty, always try fixed index too
+    if(!val && idx === undefined) return row[fallback]?.trim() || '';
+    return val;
+  };
+
+  for(const row of rows){
+    if(row.length<10) continue;
+    const branch=row[0]?.trim();
+    const sid=row[1]?.trim();
+    const name=row[2]?.trim();
+    if(!BRANCHES.includes(branch)) continue;
+    if(['Student ID','Appscript','a',''].includes(sid)) continue;
+    if(['Student Name','Automated',''].includes(name)) continue;
+    const ag = row[7]?.trim()||'';
+    ALL.push({
+      branch, sid, name,
+      age_group: ['#N/A','#VALUE!','#REF!','#NUM!','#ERROR!'].includes(ag)?'':ag,
+      class1: row[8]?.trim()||'',
+      ret_flag: row[10]?.trim()||'',
+      last_mem_date: row[11]?.trim()||'',
+      sa_acq: row[12]?.trim()||'',
+      sa_ret: row[13]?.trim()||'',
+      pkg_type: row[17]?.trim()||'',
+      exp_payment: row[20]?.trim()||'',
+      ret_status: col(row,'retention status',21),
+      churn_reason: row[23]?.trim()||col(row,'churn reason',23),
+      last_mem: row[29]?.trim()||'',
+      fp_date: col(row,'fp date (mm/dd/yyyy)',34),
+      churn_cat: row[46]?.trim()||col(row,'churn categorizations',46)||'Uncategorized',
+      final_verdict: row[47]?.trim()||col(row,'final verdict',47)||'Uncategorized',
+    });
+  }
+  setLoading(80);
+  initFilters();
+  filtered = [...ALL];
+  setLoading(100);
+  document.getElementById('uploadSection').style.display='none';
+  document.getElementById('dashContent').style.display='block';
+  document.getElementById('dbSub').textContent = `${ALL.length.toLocaleString()} siswa · ${BRANCHES.filter(b=>ALL.some(d=>d.branch===b)).length} branch aktif`;
+  const now = new Date();
+  document.getElementById('lastUpdated').textContent = `🔄 Updated ${now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`;
+  updateDashboard();
+  populateStudentFilters();
+  renderSA();
+}
+
+// ======= MONTH HELPERS =======
+const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+function extractMonth(val){
+  if(!val||val.startsWith('#')||val==='Automated'||val==='Viola') return null;
+  const s = val.trim();
+  // ISO date: 2025-01-15
+  let m = s.match(/^(\d{4})-(\d{2})/);
+  if(m) return `${MONTH_NAMES[parseInt(m[2])-1]} ${m[1]}`;
+  // M/D/YYYY (e.g. 4/13/2025)
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m){
+    const mo = parseInt(m[1])-1;
+    if(mo>=0 && mo<=11) return `${MONTH_NAMES[mo]} ${m[3]}`;
+  }
+  // M/D/YY (e.g. 6/1/25)
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if(m){
+    const mo = parseInt(m[1])-1;
+    const yr = 2000 + parseInt(m[3]);
+    if(mo>=0 && mo<=11) return `${MONTH_NAMES[mo]} ${yr}`;
+  }
+  // DD-Mon-YY (e.g. 10-Feb-25)
+  m = s.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2})$/);
+  if(m){
+    const abbrs = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const idx = abbrs.indexOf(m[2].toLowerCase());
+    const yr = 2000 + parseInt(m[3]);
+    if(idx>=0) return `${MONTH_NAMES[idx]} ${yr}`;
+  }
+  // DD-Mon-YYYY (e.g. 10-Feb-2025)
+  m = s.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+  if(m){
+    const abbrs = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const idx = abbrs.indexOf(m[2].toLowerCase());
+    if(idx>=0) return `${MONTH_NAMES[idx]} ${m[3]}`;
+  }
+  // "Jan 2025" or "January 2025"
+  m = s.match(/^([A-Za-z]+)[^0-9]*(\d{4})/);
+  if(m){
+    const abbr = m[1].slice(0,3).toLowerCase();
+    const abbrs = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const idx = abbrs.indexOf(abbr);
+    if(idx>=0) return `${MONTH_NAMES[idx]} ${m[2]}`;
+  }
+  return null;
+}
+
+function getMonths(data){
+  const seen = new Set();
+  const result = [];
+  data.forEach(d=>{
+    const mo = extractMonth(d.last_mem_date);
+    if(mo && !seen.has(mo)){ seen.add(mo); result.push(mo); }
+  });
+  result.sort((a,b)=>{
+    const parse = s => {
+      const p = s.split(' ');
+      const yr = p.length===2 ? parseInt(p[1]) : 2000;
+      const mo = MONTH_NAMES.indexOf(p[0]);
+      return yr*12 + mo;
+    };
+    return parse(a)-parse(b);
+  });
+  return result;
+}
+
+function populateMonthSelect(id, months){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const cur = el.value;
+  el.innerHTML = `<option value="">Semua Bulan</option>` + months.map(m=>`<option value="${m}">${m}</option>`).join('');
+  if(months.includes(cur)) el.value = cur;
+}
+
+function filterByMonth(data, monthVal){
+  if(!monthVal) return data;
+  return data.filter(d => extractMonth(d.last_mem_date) === monthVal);
+}
+
+
+
+function initFilters(){
+  const months = getMonths(ALL);
+  populateMonthSelect('fMonth', months);
+  const branches = [...new Set(ALL.map(d=>d.branch))].sort();
+  const ages = [...new Set(ALL.map(d=>d.age_group).filter(Boolean))].sort();
+  const statuses = [...new Set(ALL.map(d=>d.ret_status).filter(Boolean).filter(s=>!s.startsWith('#')))].sort();
+  const pkgs = [...new Set(ALL.map(d=>d.pkg_type).filter(Boolean))].sort();
+
+  function populate(id, vals, label){
+    const el = document.getElementById(id);
+    el.innerHTML = `<option value="">Semua ${label}</option>` + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+  }
+  populate('fBranch', branches, 'Branch');
+  populate('fAgeGroup', ages, 'Usia');
+  populate('fRetStatus', statuses, 'Status');
+  populate('fPkg', pkgs, 'Paket');
+}
+function populateStudentFilters(){
+  const months = getMonths(ALL);
+  populateMonthSelect('sMonth', months);
+  populateMonthSelect('saMonth', months);
+  const branches = [...new Set(ALL.map(d=>d.branch))].sort();
+  const ages = [...new Set(ALL.map(d=>d.age_group).filter(Boolean))].sort();
+  const statuses = [...new Set(ALL.map(d=>d.ret_status).filter(Boolean).filter(s=>!s.startsWith('#')))].sort();
+  const saBranch = document.getElementById('saBranch');
+
+  function pop(id, vals, label){
+    document.getElementById(id).innerHTML = `<option value="">Semua ${label}</option>` + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+  }
+  pop('sBranch', branches, 'Branch');
+  pop('sStatus', statuses, 'Status');
+  pop('sAge', ages, 'Usia');
+  saBranch.innerHTML = `<option value="">Semua Branch</option>` + branches.map(b=>`<option value="${b}">${b}</option>`).join('');
+}
+
+function applyFilters(){
+  const b=document.getElementById('fBranch').value;
+  const a=document.getElementById('fAgeGroup').value;
+  const s=document.getElementById('fRetStatus').value;
+  const p=document.getElementById('fPkg').value;
+  const mo=document.getElementById('fMonth').value;
+  filtered = filterByMonth(ALL, mo).filter(d=>
+    (!b||d.branch===b)&&(!a||d.age_group===a)&&(!s||d.ret_status===s)&&(!p||d.pkg_type===p)
+  );
+  updateDashboard();
+}
+function resetFilters(){
+  ['fBranch','fAgeGroup','fRetStatus','fPkg','fMonth'].forEach(id=>document.getElementById(id).value='');
+  filtered=[...ALL]; updateDashboard();
+}
+
+// ======= DASHBOARD =======
+function updateDashboard(){
+  const data = filtered;
+  renderMetrics(data);
+  renderRetStatus(data);
+  renderAgeChart(data);
+  renderBranchChart(data);
+  renderChurnBars(data);
+  renderPkgBars(data);
+  renderChurnCat(data);
+  renderVerdict(data);
+  renderCohortChart(data);
+}
+
+function shiftMonth(monthStr, delta){
+  // monthStr = "April 2026", delta = +1/-1 etc
+  const parts = monthStr.split(' ');
+  if(parts.length !== 2) return null;
+  let mo = MONTH_NAMES.indexOf(parts[0]);
+  let yr = parseInt(parts[1]);
+  if(mo === -1 || isNaN(yr)) return null;
+  mo += delta;
+  while(mo < 0){ mo += 12; yr--; }
+  while(mo > 11){ mo -= 12; yr++; }
+  return `${MONTH_NAMES[mo]} ${yr}`;
+}
+
+function renderCohortChart(data){
+  const selectedMonth = document.getElementById('fMonth').value;
+  const cohortEl = document.getElementById('cohortSection');
+
+  if(!selectedMonth){
+    cohortEl.style.display = 'none';
+    return;
+  }
+  cohortEl.style.display = 'block';
+  document.getElementById('cohortLabel').textContent = selectedMonth;
+
+  const offsets = [-3,-2,-1,0,1,2,3];
+  const months = offsets.map(o => shiftMonth(selectedMonth, o));
+  const labels = offsets.map((o,i) => {
+    const mo = months[i];
+    return o===0 ? `M0 (${mo})` : `M${o>0?'+':''}${o} (${mo})`;
+  });
+
+  // For each month bucket: siswa last_mem = that month, paid = fp_date ada isi
+  const isPaid = d => d.fp_date && !d.fp_date.startsWith('#') && d.fp_date !== '';
+  const counts = months.map(mo => {
+    const cohort = ALL.filter(d => extractMonth(d.last_mem_date) === mo);
+    return cohort.filter(isPaid).length;
+  });
+  const totals = months.map(mo => ALL.filter(d => extractMonth(d.last_mem_date) === mo).length);
+
+  // 30% target line — only for M0 (index 3) to M+3 (index 6), null for M-3~M-1
+  const targetVals = totals.map((t, i) => i >= 3 ? Math.round(t * 0.30) : null);
+
+  // M0 cohort stats
+  const m0Cohort = ALL.filter(d => extractMonth(d.last_mem_date) === selectedMonth);
+  const m0Total = m0Cohort.length;
+  const m0Paid = m0Cohort.filter(isPaid).length;
+  const m0NoFP = m0Total - m0Paid;
+
+  const barColors = [
+    '#93c5fd','#60a5fa','#3b82f6',
+    '#0d9e5c',
+    '#fcd34d','#f59e0b','#d97706',
+  ];
+
+  mkChart('cohortChart','bar', labels, [
+    {
+      type: 'bar',
+      label: 'Paid',
+      data: counts,
+      backgroundColor: barColors,
+      borderRadius: 6,
+      borderWidth: 0,
+      order: 2,
+    },
+    {
+      type: 'line',
+      label: 'Target 30%',
+      data: targetVals,
+      borderColor: '#e03131',
+      borderWidth: 2.5,
+      borderDash: [7, 4],
+      pointRadius: 5,
+      pointBackgroundColor: '#e03131',
+      pointBorderColor: '#fff',
+      pointBorderWidth: 2,
+      fill: false,
+      tension: 0,
+      spanGaps: false,
+      order: 1,
+    }
+  ], {
+    scales:{
+      y:{ticks:{color:'#9a9a90'},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true},
+      x:{ticks:{color:'#6b6b63',font:{size:11}},grid:{display:false}}
+    },
+    plugins:{
+      legend:{display:true, position:'top', labels:{font:{size:11}, boxWidth:12, padding:16, filter: item => item.datasetIndex === 1}},
+      datalabels: false,
+      tooltip:{callbacks:{label: ctx => {
+        if(ctx.datasetIndex === 1) return ` Target 30%: ${ctx.parsed.y}`;
+        const t = totals[ctx.dataIndex];
+        return ` ${ctx.parsed.y} paid dari ${t} siswa (${t?Math.round(ctx.parsed.y/t*100):0}%)`;
+      }}},
+    },
+    animation:{
+      onComplete(ctx){
+        const chart = ctx.chart;
+        const {ctx:c, data} = chart;
+        c.save();
+        c.font = '600 11px Plus Jakarta Sans, sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'bottom';
+        data.datasets[0].data.forEach((val, i) => {
+          const t = totals[i];
+          const pct = t ? Math.round(val/t*100) : 0;
+          const meta = chart.getDatasetMeta(0);
+          const bar = meta.data[i];
+          if(!bar) return;
+          const x = bar.x;
+          const y = bar.y - 4;
+          c.fillStyle = '#1a1a18';
+          c.fillText(`${pct}%`, x, y);
+        });
+        c.restore();
+      }
+    }
+  });
+
+  document.getElementById('cohortStats').innerHTML = `
+    <div style="text-align:center;padding:6px 14px;background:var(--surface2);border-radius:8px;">
+      <div style="font-size:18px;font-weight:800;font-family:'DM Sans',sans-serif;">${m0Total.toLocaleString()}</div>
+      <div style="font-size:11px;color:var(--text2);">Total Cohort M0</div>
+    </div>
+    <div style="text-align:center;padding:6px 14px;background:var(--green-bg);border-radius:8px;">
+      <div style="font-size:18px;font-weight:800;font-family:'DM Sans',sans-serif;color:var(--green);">${m0Paid.toLocaleString()}</div>
+      <div style="font-size:11px;color:var(--green);">Paid M0</div>
+    </div>
+    <div style="text-align:center;padding:6px 14px;background:var(--red-bg);border-radius:8px;">
+      <div style="font-size:18px;font-weight:800;font-family:'DM Sans',sans-serif;color:var(--red);">${m0NoFP.toLocaleString()}</div>
+      <div style="font-size:11px;color:var(--red);">Belum FP M0</div>
+    </div>
+    <div style="text-align:center;padding:6px 14px;background:var(--surface2);border-radius:8px;">
+      <div style="font-size:18px;font-weight:800;font-family:'DM Sans',sans-serif;">${m0Total?Math.round(m0Paid/m0Total*100):0}%</div>
+      <div style="font-size:11px;color:var(--text2);">Retention Rate M0</div>
+    </div>
+  `;
+
+  document.getElementById('cohortLeg').innerHTML = [
+    {c:'#3b82f6',l:'M-3 ~ M-1'},
+    {c:'#0d9e5c',l:'M0 (bulan dipilih)'},
+    {c:'#f59e0b',l:'M+1 ~ M+3'},
+    {c:'#e03131',l:'Target 30% (M0~M+3)',dashed:true},
+  ].map(x=>`<span class="leg-item"><span class="leg-dot" style="background:${x.c};${x.dashed?'border-radius:0;height:3px;width:14px;border-top:2.5px dashed '+x.c+';background:transparent;':''}" ></span>${x.l}</span>`).join('');
+
+  // Build per-cohort fp breakdown for all 7 months
+  const isPaidFn = d => d.fp_date && !d.fp_date.startsWith('#') && d.fp_date !== '';
+  const colColors = ['#93c5fd','#60a5fa','#3b82f6','#0d9e5c','#fcd34d','#f59e0b','#d97706'];
+
+  const colCards = offsets.map((o, i) => {
+    const cohortMo = months[i];
+    const cohort = ALL.filter(d => extractMonth(d.last_mem_date) === cohortMo);
+    const cohortTotal = cohort.length;
+    const cohortPaid = cohort.filter(isPaidFn);
+    const cohortPaidTotal = cohortPaid.length;
+    const retPct = cohortTotal ? Math.round(cohortPaidTotal/cohortTotal*100) : 0;
+    const retColor = retPct >= 30 ? 'var(--green)' : retPct >= 20 ? 'var(--amber)' : 'var(--red)';
+
+    // breakdown by fp_date relative to cohortMo
+    const breakdown = [-2,-1,0,1,2].map(d => {
+      const bMo = shiftMonth(cohortMo, d);
+      const n = cohortPaid.filter(x => extractMonth(x.fp_date) === bMo).length;
+      const pct = cohortTotal ? Math.round(n/cohortTotal*100) : 0;
+      const label = d===0?'M0':d<0?`M${d}`:`M+${d}`;
+      return {label, pct, n, mo: bMo};
+    }).filter(x => x.n > 0);
+
+    return `
+      <div style="background:var(--surface2);border-radius:12px;padding:12px 14px;min-width:130px;flex:1;">
+        <div style="font-size:11px;font-weight:700;color:${colColors[i]};margin-bottom:2px;">${labels[i].split(' ')[0]}</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">${cohortMo}</div>
+        <div style="font-size:20px;font-weight:800;color:${retColor};font-family:'DM Sans',sans-serif;line-height:1;margin-bottom:8px;">${retPct}%</div>
+        <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;flex-direction:column;gap:4px;">
+          ${breakdown.length ? breakdown.map(b => `
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);">
+              <span>${b.label}</span>
+              <span style="font-weight:700;color:var(--text);">${b.pct}%</span>
+            </div>`).join('') : `<div style="font-size:10px;color:var(--text3);">No FP data</div>`}
+          ${breakdown.length > 1 ? `
+            <div style="display:flex;justify-content:space-between;font-size:10px;border-top:1px solid var(--border);padding-top:4px;margin-top:2px;">
+              <span style="color:var(--text2);font-weight:600;">Total</span>
+              <span style="font-weight:800;color:${retColor};">${retPct}%</span>
+            </div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('cohortTable').innerHTML = `
+    <div style="display:flex;gap:8px;margin-top:16px;overflow-x:auto;padding-bottom:4px;">
+      ${colCards}
+    </div>
+  `;
+
+  // Render per-branch breakdown for M0, M+1, M+2, M+3
+  const branchSlots = [
+    {offset:0, chartId:'branchM0Chart', titleId:'branchM0Title', rateId:'branchM0Rate', color:'#0d9e5c', label:'M0'},
+    {offset:1, chartId:'branchM1Chart', titleId:'branchM1Title', rateId:'branchM1Rate', color:'#2563eb', label:'M+1'},
+    {offset:2, chartId:'branchM2Chart', titleId:'branchM2Title', rateId:'branchM2Rate', color:'#d97706', label:'M+2'},
+    {offset:3, chartId:'branchM3Chart', titleId:'branchM3Title', rateId:'branchM3Rate', color:'#d97706', label:'M+3'},
+  ];
+
+  document.getElementById('cohortBranchCharts').style.display = 'block';
+
+  branchSlots.forEach(slot => {
+    const mo = shiftMonth(selectedMonth, slot.offset);
+    const cohortForMo = ALL.filter(d => extractMonth(d.last_mem_date) === mo);
+    const branches = BRANCHES.filter(b => cohortForMo.some(d => d.branch === b));
+    const branchRates = branches.map(b => {
+      const t = cohortForMo.filter(d => d.branch === b).length;
+      const p = cohortForMo.filter(d => d.branch === b && isPaidFn(d)).length;
+      return {branch: b, rate: t ? Math.round(p/t*100) : 0, paid: p, total: t};
+    }).sort((a,b) => b.rate - a.rate);
+
+    const overallRate = cohortForMo.length ? Math.round(cohortForMo.filter(isPaidFn).length / cohortForMo.length * 100) : 0;
+    document.getElementById(slot.titleId).textContent = `${slot.label} — ${mo}`;
+    document.getElementById(slot.rateId).textContent = `Retention % ${overallRate}%`;
+    document.getElementById(slot.rateId).style.color = slot.color;
+
+    mkChart(slot.chartId, 'bar', branchRates.map(x=>x.branch), [{
+      data: branchRates.map(x=>x.rate),
+      backgroundColor: slot.color,
+      borderRadius: 4,
+      borderWidth: 0,
+    }], {
+      scales:{
+        y:{ticks:{color:'#9ba3bd',callback:v=>v+'%'},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true,max:50},
+        x:{ticks:{color:'#9ba3bd',font:{size:10}},grid:{display:false}}
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: ctx => ` ${ctx.parsed.y}% (${branchRates[ctx.dataIndex].paid}/${branchRates[ctx.dataIndex].total})`}}
+      },
+      animation:{
+        onComplete(ctx){
+          const chart = ctx.chart;
+          const {ctx:c} = chart;
+          c.save();
+          c.font = '600 10px Plus Jakarta Sans,sans-serif';
+          c.textAlign = 'center';
+          c.textBaseline = 'bottom';
+          c.fillStyle = slot.color;
+          chart.getDatasetMeta(0).data.forEach((bar,i) => {
+            if(branchRates[i].rate > 0) c.fillText(branchRates[i].rate+'%', bar.x, bar.y - 2);
+          });
+          c.restore();
+        }
+      }
+    });
+  });
+}
+
+function renderMetrics(data){
+  const total = data.length;
+  const isPaid = d => d.fp_date && !d.fp_date.startsWith('#') && d.fp_date !== '';
+  const paid = data.filter(isPaid).length;
+  const churned = data.filter(d=>d.ret_status==='Churned').length;
+  const unsure = data.filter(d=>['Still unsure','Asked - still no response','Not yet been asked','Not yet asked'].includes(d.ret_status)).length;
+  const retRate = total ? Math.round((paid/total)*100) : 0;
+
+  // M0/M-1/M-2 breakdown based on selected month filter
+  const selectedMonth = document.getElementById('fMonth').value;
+  let breakdownHtml = `${retRate}% retention rate`;
+  if(selectedMonth && paid > 0){
+    const m0 = data.filter(d => isPaid(d) && extractMonth(d.fp_date) === selectedMonth).length;
+    const m1 = data.filter(d => isPaid(d) && extractMonth(d.fp_date) === shiftMonth(selectedMonth,-1)).length;
+    const m2 = data.filter(d => isPaid(d) && extractMonth(d.fp_date) === shiftMonth(selectedMonth,-2)).length;
+    const m0pct = total ? Math.round(m0/total*100) : 0;
+    const m1pct = total ? Math.round(m1/total*100) : 0;
+    const m2pct = total ? Math.round(m2/total*100) : 0;
+    breakdownHtml = `
+      <div style="font-size:10px;color:var(--text3);margin-top:6px;display:flex;flex-direction:column;gap:2px;">
+        <div style="display:flex;justify-content:space-between;"><span>M0</span><span style="font-weight:700;color:var(--green);">${m0pct}%</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>M-1</span><span style="font-weight:700;color:var(--green);">${m1pct}%</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>M-2</span><span style="font-weight:700;color:var(--green);">${m2pct}%</span></div>
+        <div style="border-top:1px solid var(--border);margin-top:2px;padding-top:2px;display:flex;justify-content:space-between;"><span>Total</span><span style="font-weight:700;color:var(--green);">${retRate}%</span></div>
+      </div>`;
+  }
+
+  document.getElementById('metricsGrid').innerHTML = `
+    <div class="mc c-blue fade-in"><div class="mc-icon">👤</div><div class="mc-val">${total.toLocaleString()}</div><div class="mc-label">Total Siswa</div><div class="mc-sub">dari ${ALL.length.toLocaleString()} total</div></div>
+    <div class="mc c-green fade-in"><div class="mc-icon">✅</div><div class="mc-val">${paid.toLocaleString()}</div><div class="mc-label">Paid Retention</div><div class="mc-sub">${breakdownHtml}</div></div>
+    <div class="mc c-red fade-in"><div class="mc-icon">❌</div><div class="mc-val">${churned.toLocaleString()}</div><div class="mc-label">Churned</div><div class="mc-sub">${total?Math.round(churned/total*100):0}% dari total</div></div>
+    <div class="mc c-amber fade-in"><div class="mc-icon">⏳</div><div class="mc-val">${unsure.toLocaleString()}</div><div class="mc-label">Belum Dipastikan</div><div class="mc-sub">Perlu follow-up</div></div>
+    <div class="mc c-purple fade-in"><div class="mc-icon">🏢</div><div class="mc-val">${[...new Set(data.map(d=>d.branch))].length}</div><div class="mc-label">Branch Aktif</div><div class="mc-sub">dari 16 total</div></div>
+  `;
+}
+
+const CHART_OPTS = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+const charts = {};
+function mkChart(id,type,labels,datasets,extra={}){
+  const el=document.getElementById(id); if(!el) return;
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart(el,{type,data:{labels,datasets},options:{...CHART_OPTS,...extra}});
+}
+
+function renderRetStatus(data){
+  const paidCount = data.filter(d=>d.fp_date&&!d.fp_date.startsWith('#')).length;
+  const main = ['Churned','Still unsure','Asked - still no response','Not yet been asked','Not yet asked','Confirmed to churn (still possible to retain)','Confirmed to retain (not paid yet)','Move to other center'];
+  const colors = ['#c0392b','#9b59b6','#f59e0b','#b85c00','#b85c00','#e8744a','#5dc48a','#3498db'];
+  const counts = main.map(k=>data.filter(d=>d.ret_status===k&&!(d.fp_date&&!d.fp_date.startsWith('#'))).length);
+  const labels = ['Paid retention',...main.map(s=>s.length>22?s.slice(0,22)+'…':s)];
+  const vals = [paidCount,...counts];
+  const bg = ['#1a7a4a',...colors];
+  const nonZero = labels.map((l,i)=>({l,v:vals[i],c:bg[i]})).filter(x=>x.v>0);
+
+  mkChart('retStatusChart','doughnut',nonZero.map(x=>x.l),[{data:nonZero.map(x=>x.v),backgroundColor:nonZero.map(x=>x.c),borderWidth:0,hoverOffset:4}],{cutout:'65%'});
+  document.getElementById('retStatusLeg').innerHTML = nonZero.map(x=>`<span class="leg-item"><span class="leg-dot" style="background:${x.c}"></span>${x.l}: <strong>${x.v.toLocaleString()}</strong></span>`).join('');
+}
+
+function renderAgeChart(data){
+  const order=['12-23 MONTHS','24-35 MONTHS','3-4 YO','5-7+ YO'];
+  const labels=['12–23 bln','24–35 bln','3–4 th','5–7+ th'];
+  const counts=order.map(k=>data.filter(d=>d.age_group===k).length);
+  const colors=['#B5D4F4','#85B7EB','#378ADD','#1a5fa8'];
+  mkChart('ageChart','bar',labels,[{data:counts,backgroundColor:colors,borderRadius:5,borderWidth:0}],{scales:{y:{ticks:{color:'#9a9a90'},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true},x:{ticks:{color:'#9a9a90'},grid:{display:false}}}});
+}
+
+function renderBranchChart(data){
+  const branches=[...new Set(data.map(d=>d.branch))].sort();
+  const paid=branches.map(b=>data.filter(d=>d.branch===b&&d.fp_date&&!d.fp_date.startsWith('#')).length);
+  const churned=branches.map(b=>data.filter(d=>d.branch===b&&d.ret_status==='Churned').length);
+  const other=branches.map(b=>data.filter(d=>d.branch===b&&!(d.fp_date&&!d.fp_date.startsWith('#'))&&d.ret_status!=='Churned').length);
+  mkChart('branchChart','bar',branches,[
+    {label:'Paid',data:paid,backgroundColor:'#1a7a4a',borderRadius:3,borderWidth:0},
+    {label:'Churned',data:churned,backgroundColor:'#c0392b',borderRadius:3,borderWidth:0},
+    {label:'Other',data:other,backgroundColor:'#f0efe9',borderRadius:3,borderWidth:0},
+  ],{scales:{x:{stacked:true,ticks:{color:'#9a9a90'},grid:{display:false}},y:{stacked:true,ticks:{color:'#9a9a90'},grid:{color:'rgba(0,0,0,0.04)'}}},plugins:{legend:{display:true,position:'top',labels:{font:{size:11},boxWidth:10,padding:14}}}});
+}
+
+function renderBars(containerId,counter,color,max=8){
+  const sorted=Object.entries(counter).filter(([k])=>k&&k!=='Uncategorized'&&!k.startsWith('#')).sort((a,b)=>b[1]-a[1]).slice(0,max);
+  const maxVal=sorted[0]?.[1]||1;
+  document.getElementById(containerId).innerHTML=sorted.map(([label,count])=>`
+    <div class="br"><span class="br-label" title="${label}">${label}</span>
+    <div class="br-track"><div class="br-fill" style="width:${Math.round(count/maxVal*100)}%;background:${color};"></div></div>
+    <span class="br-val">${count.toLocaleString()}</span></div>
+  `).join('');
+}
+
+function counter(arr,key){
+  return arr.reduce((acc,d)=>{const v=d[key];if(v)acc[v]=(acc[v]||0)+1;return acc;},{});
+}
+
+function renderChurnBars(data){ renderBars('churnBars',counter(data,'churn_reason'),'#c0392b'); }
+function renderPkgBars(data){ renderBars('pkgBars',counter(data,'pkg_type'),'#378ADD'); }
+
+function renderChurnCat(data){
+  const c=counter(data,'churn_cat');
+  const keys=Object.keys(c).filter(k=>k&&!k.startsWith('#')).sort((a,b)=>c[b]-c[a]);
+  const colors=['#e03131','#f97316','#f59e0b','#7c3aed','#2563eb','#0d9e5c','#b4b2a9'];
+  mkChart('churnCatChart','bar',keys,[{data:keys.map(k=>c[k]),backgroundColor:keys.map((k,i)=>k==='Uncategorized'?'#d1d5db':colors[i%colors.length]),borderRadius:5,borderWidth:0}],{scales:{y:{ticks:{color:'#9ba3bd'},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true},x:{ticks:{color:'#9ba3bd',maxRotation:30},grid:{display:false}}}});
+}
+
+function renderVerdict(data){
+  const c=counter(data,'final_verdict');
+  const keys=['Addressable','Structural','Uncategorized'];
+  const colors=['#0d9e5c','#e03131','#d1d5db'];
+  const vals=keys.map(k=>c[k]||0);
+  const nonZero=keys.map((k,i)=>({k,v:vals[i],c:colors[i]})).filter(x=>x.v>0);
+  mkChart('verdictChart','doughnut',nonZero.map(x=>x.k),[{data:nonZero.map(x=>x.v),backgroundColor:nonZero.map(x=>x.c),borderWidth:0,hoverOffset:4}],{cutout:'65%'});
+  document.getElementById('verdictLeg').innerHTML=nonZero.map(x=>`<span class="leg-item"><span class="leg-dot" style="background:${x.c}"></span>${x.k}: <strong>${x.v.toLocaleString()}</strong></span>`).join('');
+}
+
+// ======= STUDENTS TABLE =======
+function resetStudentFilters(){
+  ['sBranch','sStatus','sAge','sMonth'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sSearch').value='';
+  renderTable();
+}
+
+function sortTable(key){
+  if(sortKey===key) sortDir*=-1; else {sortKey=key;sortDir=1;}
+  renderTable();
+}
+
+function renderTable(){
+  if(!ALL.length) return;
+  const b=document.getElementById('sBranch').value;
+  const s=document.getElementById('sStatus').value;
+  const a=document.getElementById('sAge').value;
+  const mo=document.getElementById('sMonth').value;
+  const q=document.getElementById('sSearch').value.toLowerCase();
+  
+  let rows=filterByMonth(ALL, mo).filter(d=>
+    (!b||d.branch===b)&&(!s||d.ret_status===s)&&(!a||d.age_group===a)&&
+    (!q||(d.name.toLowerCase().includes(q)||d.sid.toLowerCase().includes(q)))
+  );
+  rows.sort((a,b)=>{
+    const av=a[sortKey]||'',bv=b[sortKey]||'';
+    return av<bv?-sortDir:av>bv?sortDir:0;
+  });
+
+  document.getElementById('studentSub').textContent=`${rows.length.toLocaleString()} siswa`;
+  const total=rows.length;
+  const totalPages=Math.ceil(total/PAGE_SIZE);
+  if(currentPage>totalPages) currentPage=1;
+  const start=(currentPage-1)*PAGE_SIZE;
+  const pageRows=rows.slice(start,start+PAGE_SIZE);
+
+  const idx=ALL.indexOf.bind(ALL);
+  document.getElementById('tableBody').innerHTML=pageRows.map(d=>{
+    const i=ALL.indexOf(d);
+    const cls=d.class1?d.class1.split('|').slice(2,4).join(' ').trim():'-';
+    return `<tr onclick="openModal(${i})">
+      <td><strong>${d.branch}</strong></td>
+      <td>${d.name}</td>
+      <td>${agePill(d.age_group)||'<span class="muted">—</span>'}</td>
+      <td class="muted" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${d.class1}">${cls}</td>
+      <td>${statusPill(d.ret_status)}</td>
+      <td class="muted">${d.pkg_type||'—'}</td>
+      <td class="muted">${d.sa_ret||'—'}</td>
+      <td>${churnPill(d.churn_reason)}</td>
+    </tr>`;
+  }).join('');
+
+  renderPagination(total, totalPages);
+}
+
+function renderPagination(total, totalPages){
+  const start=(currentPage-1)*PAGE_SIZE+1;
+  const end=Math.min(currentPage*PAGE_SIZE,total);
+  let btns='';
+  const range=[];
+  for(let i=Math.max(1,currentPage-2);i<=Math.min(totalPages,currentPage+2);i++) range.push(i);
+  if(range[0]>1){ btns+=`<button class="pag-btn" onclick="goPage(1)">1</button>`; if(range[0]>2) btns+=`<span style="padding:0 4px;color:var(--text3)">…</span>`; }
+  range.forEach(i=>{ btns+=`<button class="pag-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`; });
+  if(range[range.length-1]<totalPages){ if(range[range.length-1]<totalPages-1) btns+=`<span style="padding:0 4px;color:var(--text3)">…</span>`; btns+=`<button class="pag-btn" onclick="goPage(${totalPages})">${totalPages}</button>`; }
+
+  document.getElementById('pagination').innerHTML=`
+    <span class="pag-info">${start.toLocaleString()}–${end.toLocaleString()} dari ${total.toLocaleString()}</span>
+    <div class="pag-btns">
+      <button class="pag-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>
+      ${btns}
+      <button class="pag-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>
+    </div>`;
+}
+
+function goPage(p){ currentPage=p; renderTable(); window.scrollTo(0,document.getElementById('page-students').offsetTop-60); }
+
+// ======= SA PAGE =======
+function renderSA(){
+  if(!ALL.length) return;
+  const branch=document.getElementById('saBranch').value;
+  const mo=document.getElementById('saMonth').value;
+  let data=filterByMonth(ALL, mo);
+  if(branch) data=data.filter(d=>d.branch===branch);
+  
+  const saMap={};
+  data.forEach(d=>{
+    if(!d.sa_ret) return;
+    const sa=d.sa_ret;
+    if(!saMap[sa]) saMap[sa]={name:sa,total:0,paid:0,churned:0,unsure:0,branches:new Set()};
+    saMap[sa].total++;
+    saMap[sa].branches.add(d.branch);
+    if(d.fp_date && !d.fp_date.startsWith('#')) saMap[sa].paid++;
+    else if(d.ret_status==='Churned') saMap[sa].churned++;
+    else saMap[sa].unsure++;
+  });
+
+  const allSA = Object.values(saMap).map(sa => ({
+    ...sa,
+    rate: sa.total ? Math.round(sa.paid/sa.total*100) : 0
+  })).sort((a,b) => b.rate - a.rate);
+
+  const tiers = [
+    {key:'top',    cls:'tier-top',      icon:'🏆', title:'Top Performer',      badge:'RR ≥ 35%',    desc:'RR di atas target. Role model center.',         action:'Bonus penuh. Jadikan Group Anchor. Diakui di monthly meeting.',  filter: sa => sa.rate >= 35},
+    {key:'mid',    cls:'tier-mid',      icon:'📈', title:'Mid Performer',      badge:'RR 30%–34%',  desc:'Di jalur yang benar, tapi belum di target.',     action:'Bonus parsial. Coaching dari AM setiap 2 minggu. Fokus 1 leading indicator.', filter: sa => sa.rate >= 30 && sa.rate < 35},
+    {key:'low',    cls:'tier-low',      icon:'⚠️', title:'Low Performer',      badge:'RR 25%–29%',  desc:'Di bawah standar. Butuh perbaikan segera.',      action:'Coaching intensif setiap minggu. Action plan 30 hari dengan target mingguan.', filter: sa => sa.rate >= 25 && sa.rate < 30},
+    {key:'crit',   cls:'tier-critical', icon:'🚨', title:'Special Attention',  badge:'RR < 25%',    desc:'Kritis. Butuh intervensi langsung AM.',          action:'PIP process. SP1 jika tidak ada perbaikan dalam 30 hari.',       filter: sa => sa.rate < 25},
+  ];
+
+  const saCardHtml = (sa, i) => {
+    const colors=['#0d9e5c','#2563eb','#e03131','#d97706','#7c3aed','#e8440c','#0891b2','#16a34a'];
+    const color = colors[i%colors.length];
+    const initials = sa.name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+    return `<div class="sa-card">
+      <div class="sa-avatar" style="background:${color}18;color:${color};">${initials}</div>
+      <div class="sa-name">${sa.name}</div>
+      <div class="sa-stats">
+        <div class="sa-row"><span>Total siswa</span><span>${sa.total.toLocaleString()}</span></div>
+        <div class="sa-row"><span>Paid retention</span><span style="color:var(--green);">${sa.paid.toLocaleString()}</span></div>
+        <div class="sa-row"><span>Churned</span><span style="color:var(--red);">${sa.churned.toLocaleString()}</span></div>
+        <div class="sa-row"><span>Retention rate</span><span style="font-weight:800;color:${sa.rate>=35?'var(--green)':sa.rate>=30?'var(--amber)':sa.rate>=25?'#f97316':'var(--red)'};">${sa.rate}%</span></div>
+        <div class="sa-row"><span>Branch</span><span style="color:var(--text2);font-size:11px;">${[...sa.branches].join(', ')}</span></div>
+      </div>
+    </div>`;
+  };
+
+  document.getElementById('saTiers').innerHTML = tiers.map(tier => {
+    const members = allSA.filter(tier.filter);
+    return `
+      <div class="tier-section ${tier.cls}">
+        <div class="tier-header">
+          <div class="tier-header-inner">
+            <span class="tier-icon">${tier.icon}</span>
+            <span class="tier-title">${tier.title}</span>
+          </div>
+          <span class="tier-badge">${tier.badge}</span>
+        </div>
+        <div class="tier-body">
+          <div style="display:flex;gap:16px;margin-bottom:${members.length?'16px':'0'};">
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">${tier.desc}</div>
+              <div style="font-size:12px;color:var(--text2);">${tier.action}</div>
+            </div>
+            <div style="font-family:'DM Sans',sans-serif;font-size:24px;font-weight:800;color:var(--text3);white-space:nowrap;">${members.length} SA</div>
+          </div>
+          ${members.length
+            ? `<div class="sa-grid">${members.map((sa,i)=>saCardHtml(sa,i)).join('')}</div>`
+            : `<div class="tier-empty">Tidak ada SA di tier ini</div>`}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ======= MODAL =======
+function openModal(idx){
+  const d=ALL[idx];
+  document.getElementById('mTitle').textContent=d.name;
+  document.getElementById('mBody').innerHTML=`
+    <div class="m-grid">
+      <div class="m-stat"><div class="m-stat-l">Branch</div><div class="m-stat-v">${d.branch} — ${BRANCH_NAMES[d.branch]||''}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Student ID</div><div class="m-stat-v" style="font-size:13px;">${d.sid}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Age Group</div><div class="m-stat-v">${d.age_group||'—'}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Paket</div><div class="m-stat-v" style="font-size:13px;">${d.pkg_type||'—'}</div></div>
+    </div>
+    <div style="margin-bottom:12px;">
+      ${statusPill(d.ret_status)}
+      ${d.churn_reason&&d.churn_reason!=='Uncategorized'?` &nbsp; ${churnPill(d.churn_reason)}`:''}
+    </div>
+    ${d.class1?`<div class="m-sec"><div class="m-sec-t">Kelas</div><div class="m-sec-b">${d.class1}</div></div>`:''}
+    <div class="m-sec"><div class="m-sec-t">SA Retention</div><div class="m-sec-b">${d.sa_ret||'—'}</div></div>
+    ${d.ret_status?`<div class="m-sec"><div class="m-sec-t">Status Retention</div><div class="m-sec-b">${d.ret_status}</div></div>`:''}
+    ${d.churn_cat&&d.churn_cat!=='Uncategorized'?`<div class="m-sec"><div class="m-sec-t">Churn Category</div><div class="m-sec-b">${d.churn_cat}</div></div>`:''}
+    ${d.final_verdict&&d.final_verdict!=='Uncategorized'?`<div class="m-sec"><div class="m-sec-t">Final Verdict</div><div class="m-sec-b">${d.final_verdict}</div></div>`:''}
+    ${d.exp_payment&&!d.exp_payment.startsWith('#')?`<div class="m-sec"><div class="m-sec-t">Expected Payment</div><div class="m-sec-b">${d.exp_payment}</div></div>`:''}
+  `;
+  document.getElementById('overlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+// ======= PAGES =======
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.top-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  event.target.classList.add('active');
+  if(id==='students'&&ALL.length) renderTable();
+  if(id==='sa'&&ALL.length) renderSA();
+}
+
+// Auto-load on startup
+window.addEventListener('DOMContentLoaded', loadFromSheet);
+
+// Auto-refresh every 5 minutes
+setInterval(loadFromSheet, 5 * 60 * 1000);
+
+</script>
+</body>
+</html>
