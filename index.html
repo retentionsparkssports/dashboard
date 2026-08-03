@@ -445,12 +445,44 @@ function parseDateFull(val) {
   m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return new Date(+m[1], +m[2]-1, +m[3]);
   // M/D/YYYY or MM/DD/YYYY
-  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) return new Date(+m[3], +m[1]-1, +m[2]);
-  // M/D/YY
-  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
-  if (m) return new Date(2000 + +m[3], +m[1]-1, +m[2]);
-  // DD-Mon-YY or DD-Mon-YYYY
+  // Slash dates (supports both DD/MM/YYYY and MM/DD/YYYY)
+m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+if (m) {
+  let a = +m[1];
+  let b = +m[2];
+  let y = +m[3];
+
+  // If first number >12, it must be DD/MM/YYYY
+  if (a > 12) {
+    return new Date(y, b - 1, a);
+  }
+
+  // If second number >12, it must be MM/DD/YYYY
+  if (b > 12) {
+    return new Date(y, a - 1, b);
+  }
+
+  // Default to DD/MM/YYYY (better for Indonesian data)
+  return new Date(y, b - 1, a);
+}
+
+// Slash dates with 2-digit year
+m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+if (m) {
+  let a = +m[1];
+  let b = +m[2];
+  let y = 2000 + +m[3];
+
+  if (a > 12) {
+    return new Date(y, b - 1, a);
+  }
+
+  if (b > 12) {
+    return new Date(y, a - 1, b);
+  }
+
+  return new Date(y, b - 1, a);
+}
   m = s.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
   if (m) {
     const abbrs = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
