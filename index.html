@@ -395,15 +395,20 @@ const TODAY = new Date();
 // Main retention database (published via File > Publish to web)
 const MAIN_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeIA2oXKEneJoX7243gCkDS7uU1YZIZK8BzcLuJDrqsmpSp0TbvyKdvZrxbzq2rzG4ac8kX6BtuJHx/pub?gid=398767044&single=true&output=csv';
 
-// SAR Dictionary — sheet ID + name. Uses gviz/tq CSV export which works
-// as long as sharing is set to "Anyone with the link can view".
-const SAR_SHEET_ID   = '1OGZnco_Qvez83zB6e6gjlxnvcauXH_T9p-s6N44fx1s';
-const SAR_SHEET_NAME = 'SAR Database'; // tab name — adjust if different
-const SAR_CSV = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SAR_SHEET_NAME)}`;
-// Fallback tries the "[Automated]" prefix variant
-const SAR_CSV_ALT = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('[Automated] SAR Database')}`;
-// Second fallback: pub CSV (if the sheet was published)
-const SAR_PUB_CSV = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/pub?output=csv`;
+// SAR Dictionary — the original "[Automated] SAR Database" sheet
+// (1OGZnco...) is not shared for anonymous CSV export, so we instead read
+// its "SAR Dictionary" tab in the "All Retention Database" workbook — the
+// same workbook MAIN_CSV already reads from — which mirrors it via
+// IMPORTRANGE. Loaded by gid (stable across tab renames), with the sheet
+// name and a "pub" export as fallbacks.
+const SAR_SHEET_ID   = '1gGYi_MnlQgNpv1u8JeNCPicgP54utpv3Ue3wPWb3cQ0';
+const SAR_SHEET_GID  = '1188717085';
+const SAR_SHEET_NAME = 'SAR Dictionary';
+const SAR_CSV = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SAR_SHEET_GID}`;
+// Fallback: same workbook, looked up by tab name instead of gid
+const SAR_CSV_ALT = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SAR_SHEET_NAME)}`;
+// Second fallback: pub CSV (if the workbook was published to web)
+const SAR_PUB_CSV = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/pub?gid=${SAR_SHEET_GID}&output=csv`;
 
 // =====================================================================
 // STATE
