@@ -760,6 +760,7 @@ function processMainRows(rows) {
       sa_ret:       row[13]?.trim() || '',
       pkg_type:     row[17]?.trim() || '',
       exp_payment:  row[20]?.trim() || '',
+      expiry_date:  col(row,'expiry date',48) || row[48]?.trim() || '',
       ret_status:   col(row,'retention status',21),
       churn_reason: col(row,'churn reason',23) || row[23]?.trim() || '',
       fp_date:      col(row,'fp date (mm/dd/yyyy)',34) || row[34]?.trim() || '',
@@ -838,13 +839,13 @@ function getAllMonths(data) {
   const seen = new Set();
   let unparsed = 0, sampleRaw = null;
   data.forEach(d => {
-    if (!d.last_mem_date) return;
-    const mo = extractMonthLabel(d.last_mem_date);
+    if (!d.expiry_date) return;
+    const mo = extractMonthLabel(d.expiry_date);
     if (mo) seen.add(mo);
-    else { unparsed++; if (sampleRaw === null) sampleRaw = d.last_mem_date; }
+    else { unparsed++; if (sampleRaw === null) sampleRaw = d.expiry_date; }
   });
   if (unparsed > 0 && seen.size === 0) {
-    console.warn(`getAllMonths: could not parse any of ${unparsed} last_mem_date value(s). Sample raw value: "${sampleRaw}"`);
+    console.warn(`getAllMonths: could not parse any of ${unparsed} expiry_date value(s). Sample raw value: "${sampleRaw}"`);
   }
   return [...seen].sort((a, b) => monthLabelToSortKey(a) - monthLabelToSortKey(b));
 }
@@ -868,9 +869,9 @@ function filterByMonth(data, monthVal) {
   if (!monthVal) return data;
   if (monthVal === 'LAST3') {
     const set = new Set(getLast3MonthLabels());
-    return data.filter(d => set.has(extractMonthLabel(d.last_mem_date)));
+    return data.filter(d => set.has(extractMonthLabel(d.expiry_date)));
   }
-  return data.filter(d => extractMonthLabel(d.last_mem_date) === monthVal);
+  return data.filter(d => extractMonthLabel(d.expiry_date) === monthVal);
 }
 
 // =====================================================================
@@ -1004,8 +1005,9 @@ function updateDashboard() {
 // METRICS
 // =====================================================================
 const hasValue = v => !!v && !v.startsWith('#') && v.trim() !== '';
-const PAID_STATUSES = ['paid retention', 'paid - cicil'];
-const isPaid = d => PAID_STATUSES.includes((d.ret_status || '').trim().toLowerCase()) && hasValue(d.fp_date) && hasValue(d.fp_amount);
+// Matches the "Compiled Retention" sheet's own retention formula:
+// FP Date and FP Amount both filled — no Retention Status text check.
+const isPaid = d => hasValue(d.fp_date) && hasValue(d.fp_amount);
 
 function renderMetrics(data) {
   const total   = data.length;
@@ -1139,8 +1141,8 @@ function renderCohortSection(data) {
     return o===0 ? `M0 (${mo})` : `M${o>0?'+':''}${o} (${mo})`;
   });
 
-  const counts  = months.map(mo => ALL.filter(d => extractMonthLabel(d.last_mem_date)===mo && isPaid(d)).length);
-  const totals  = months.map(mo => ALL.filter(d => extractMonthLabel(d.last_mem_date)===mo).length);
+  const counts  = months.map(mo => ALL.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length);
+  const totals  = months.map(mo => ALL.filter(d => extractMonthLabel(d.expiry_date)===mo).length);
   const targets = totals.map((t,i) => i >= 3 ? Math.round(t*0.30) : null);
 
   const barColors = ['#93c5fd','#60a5fa','#3b82f6','#0d9e5c','#fcd34d','#f59e0b','#d97706'];
@@ -1165,8 +1167,8 @@ function renderCohortSection(data) {
     }
   });
 
-  const m0Total = ALL.filter(d => extractMonthLabel(d.last_mem_date)===selectedMonth).length;
-  const m0Paid  = ALL.filter(d => extractMonthLabel(d.last_mem_date)===selectedMonth && isPaid(d)).length;
+  const m0Total = ALL.filter(d => extractMonthLabel(d.expiry_date)===selectedMonth).length;
+  const m0Paid  = ALL.filter(d => extractMonthLabel(d.expiry_date)===selectedMonth && isPaid(d)).length;
   document.getElementById('cohortStats').innerHTML = `
     <div style="text-align:center;padding:6px 14px;background:var(--surface2);border-radius:8px;">
       <div style="font-size:18px;font-weight:800;font-family:'DM Sans',sans-serif;">${m0Total}</div>
@@ -1189,7 +1191,7 @@ function renderCohortSection(data) {
   // Per-cohort mini cards
   const cards = offsets.map((o,i) => {
     const mo = months[i];
-    const cohort = ALL.filter(d => extractMonthLabel(d.last_mem_date)===mo);
+    const cohort = ALL.filter(d => extractMonthLabel(d.expiry_date)===mo);
     const t = cohort.length;
     const p = cohort.filter(isPaid).length;
     const pct = t ? Math.round(p/t*100) : 0;
