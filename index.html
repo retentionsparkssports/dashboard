@@ -745,12 +745,24 @@ function processMainRows(rows) {
 
   // Find header row
   let hIdx = {};
+  let headerRowArr = null;
   for (let i = 0; i < Math.min(rows.length, 10); i++) {
     const joined = rows[i].join('|').toLowerCase();
     if (joined.includes('churn reason') || joined.includes('retention status')) {
+      headerRowArr = rows[i];
       rows[i].forEach((h, j) => { if (h.trim()) hIdx[h.trim().toLowerCase()] = j; });
       break;
     }
+  }
+
+  console.log('Main sheet column mapping (by header name lookup):', {
+    'retention status':     hIdx['retention status']     ?? '(not found — using fallback index 21/V)',
+    'fp date (mm/dd/yyyy)': hIdx['fp date (mm/dd/yyyy)'] ?? '(not found — using fallback index 34/AI)',
+    'fp amount':            hIdx['fp amount']            ?? '(not found — using fallback index 35/AJ)',
+  });
+  if (headerRowArr) {
+    console.log('Header row, columns index 18-38 (~S-AM):',
+      headerRowArr.slice(18, 39).map((h, i) => `[${18 + i}] "${h}"`));
   }
 
   const col = (row, name, fallback) => {
@@ -785,6 +797,11 @@ function processMainRows(rows) {
       final_verdict:row[47]?.trim() || col(row,'final verdict',47) || 'Uncategorized',
     });
   }
+
+  console.log('Sample of parsed rows (ret_status / fp_date / fp_amount):',
+    ALL.slice(0, 5).map(d => ({ name: d.name, ret_status: d.ret_status, fp_date: d.fp_date, fp_amount: d.fp_amount })));
+  console.log(`Rows with FP Date filled: ${ALL.filter(d=>d.fp_date).length} / ${ALL.length}` +
+    ` — Rows with FP Amount filled: ${ALL.filter(d=>d.fp_amount).length} / ${ALL.length}`);
 
   setLoading(80);
   initFilters();
