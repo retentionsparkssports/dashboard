@@ -423,7 +423,7 @@ td.muted{color:var(--text2);}
 // CONSTANTS
 // =====================================================================
 const BRANCHES = ['BDM','BSD','CKR','HIB','KGD','KLM','KMP','KWC','MRG','PJR','PJT','SBG','SBK','TGC','TJD','YGC'];
-const BRANCH_NAMES = {BDM:'Bandung Melong',BSD:'BSD',CKR:'Cikaret',HIB:'HIB',KGD:'Kelapa Gading',KLM:'Kelapa Lima',KMP:'Kampung Melayu',KWC:'Kawangkoan',MRG:'Margonda',PJR:'Pasar Jumat',PJT:'Pasar Jumat Timur',SBG:'Surabaya Gubeng',SBK:'Surabaya Kalianak',TGC:'Tangerang City',TJD:'Tanjung Duren',YGC:'Yogyakarta'};
+const BRANCH_NAMES = {BDM:'Bandung Merdeka',BSD:'BSD',CKR:'Cikarang',HIB:'Harapan Indah Bekasi',KGD:'Kelapa Gading',KLM:'Kalimalang',KMP:'Kemang Pratama',KWC:'Karawaci',MRG:'Margonda',PJR:'Pajajaran',PJT:'Pejaten',SBG:'Surabaya Gubeng',SBK:'Surabaya Klampis',TGC:'Tangerang City',TJD:'Tanjung Duren',YGC:'Yogyakarta'};
 const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const PAGE_SIZE = 50;
 
@@ -1109,7 +1109,7 @@ function updateDashboard() {
   let paidData = filtered.filter(activeSAFilter);
 
   renderMetrics(data, paidData);
-  renderRetStatus(data);
+  renderRetStatus(data, paidData);
   renderAgeChart(data);
   renderRetCycle(data);
   renderBranchChart(data);
@@ -1256,15 +1256,30 @@ function renderBars(containerId, obj, color, max=8) {
     </div>`).join('');
 }
 
-function renderRetStatus(data) {
-  const paidN = data.filter(isPaid).length;
-  const statuses = ['Churned','Still unsure','Asked - still no response','Not yet been asked','Not yet asked','Confirmed to churn (still possible to retain)','Confirmed to retain (not paid yet)','Move to other center'];
-  const colors   = ['#c0392b','#9b59b6','#f59e0b','#b85c00','#b85c00','#e8744a','#5dc48a','#3498db'];
+function renderRetStatus(data, paidData) {
+  paidData = paidData || data;
+  // Paid uses paidData (matching the headline Paid Retention card exactly,
+  // same decoupling as renderMetrics). Non-paid rows are bucketed by their
+  // *actual* ret_status text (not a fixed list) so nothing silently
+  // disappears — a status variant not in KNOWN_STATUSES (e.g. "Paid
+  // retention - DP") used to vanish from this chart entirely, making its
+  // total fall short of Total Siswa.
+  const paidN = paidData.filter(isPaid).length;
+  const KNOWN_STATUSES = ['Churned','Still unsure','Asked - still no response','Not yet been asked','Not yet asked','Confirmed to churn (still possible to retain)','Confirmed to retain (not paid yet)','Move to other center'];
+  const KNOWN_COLORS   = ['#c0392b','#9b59b6','#f59e0b','#b85c00','#b85c00','#e8744a','#5dc48a','#3498db'];
+  const OTHER_COLOR = '#94a3b8';
+
+  const nonPaidCounts = counter(data.filter(d => !isPaid(d)), 'ret_status');
+  const otherStatuses = Object.keys(nonPaidCounts)
+    .filter(k => k && !k.startsWith('#') && !KNOWN_STATUSES.includes(k))
+    .sort((a,b) => nonPaidCounts[b]-nonPaidCounts[a]);
+
   const entries = [
     {l:'Paid retention', v:paidN, c:'#1a7a4a'},
-    ...statuses.map((s,i) => ({l:s.length>22?s.slice(0,22)+'…':s, v:data.filter(d=>d.ret_status===s&&!isPaid(d)).length, c:colors[i]}))
+    ...KNOWN_STATUSES.map((s,i) => ({l:s.length>22?s.slice(0,22)+'…':s, v:nonPaidCounts[s]||0, c:KNOWN_COLORS[i]})),
+    ...otherStatuses.map(s => ({l:s.length>22?s.slice(0,22)+'…':s, v:nonPaidCounts[s], c:OTHER_COLOR})),
   ].filter(x=>x.v>0);
-  const total = entries.reduce((sum,x) => sum+x.v, 0);
+  const total = data.length; // matches the Total Siswa headline exactly
   const pct = v => total ? Math.round(v/total*100) : 0;
 
   mkChart('retStatusChart','doughnut', entries.map(x=>x.l),
