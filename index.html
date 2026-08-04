@@ -1054,11 +1054,15 @@ function updateDashboard() {
 // METRICS
 // =====================================================================
 const hasValue = v => !!v && !v.startsWith('#') && v.trim() !== '';
-// Matches the "Compiled Retention" sheet's own retention formula:
-// FP Date and FP Amount both filled — no Retention Status text check.
-// (Retention Status is set by staff after the fact and can lag FP Date/
-// Amount by weeks, which was undercounting recent months.)
-const isPaid = d => hasValue(d.fp_date) && hasValue(d.fp_amount);
+// Matches the "Compiled Retention" sheet's Expiry Cohort report formula:
+// Retention Status is exactly "Paid Retention" or "Paid - Cicil"
+// (case-insensitive, matching COUNTIFS text comparison) — no FP Date/FP
+// Amount check. Note: an earlier formula shown for a different report
+// used AI<>""/AJ<>"" with no status check instead — the sheet appears to
+// use two different retention definitions for different reports; this
+// matches the one behind the cohort table specifically.
+const PAID_STATUSES = ['paid retention', 'paid - cicil'];
+const isPaid = d => PAID_STATUSES.includes((d.ret_status || '').trim().toLowerCase());
 
 // Matches the exclusion criteria baked into the sheet's Total COUNTIFS:
 // students who moved centers or dropped for non-payment aren't part of
