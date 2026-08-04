@@ -1354,13 +1354,13 @@ function renderCohortSection(data) {
   // source sheet, so they're computed from different populations here too.
   const counts  = months.map(mo => ALL.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length);
   const totals  = months.map(mo => ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo).length);
-  const targets = totals.map((t,i) => i >= 3 ? Math.round(t*0.30) : null);
+  const targets = totals.map((t,i) => i >= 3 ? Math.round(t*0.35) : null);
 
   const barColors = ['#93c5fd','#60a5fa','#3b82f6','#0d9e5c','#fcd34d','#f59e0b','#d97706'];
 
   mkChart('cohortChart','bar',labels,[
     {type:'bar',  label:'Paid', data:counts, backgroundColor:barColors, borderRadius:6, borderWidth:0, order:2},
-    {type:'line', label:'Target 30%', data:targets, borderColor:'#e03131', borderWidth:2.5,
+    {type:'line', label:'Target 35%', data:targets, borderColor:'#e03131', borderWidth:2.5,
      borderDash:[7,4], pointRadius:5, pointBackgroundColor:'#e03131', pointBorderColor:'#fff',
      pointBorderWidth:2, fill:false, tension:0, spanGaps:false, order:1},
   ],{
@@ -1371,7 +1371,7 @@ function renderCohortSection(data) {
     plugins:{
       legend:{display:true,position:'top',labels:{font:{size:11},boxWidth:12,padding:16,filter:item=>item.datasetIndex===1}},
       tooltip:{callbacks:{label: ctx => {
-        if(ctx.datasetIndex===1) return ` Target 30%: ${ctx.parsed.y}`;
+        if(ctx.datasetIndex===1) return ` Target 35%: ${ctx.parsed.y}`;
         const t = totals[ctx.dataIndex];
         return ` ${ctx.parsed.y} paid dari ${t} siswa (${t?Math.round(ctx.parsed.y/t*100):0}%)`;
       }}}
@@ -1396,7 +1396,7 @@ function renderCohortSection(data) {
 
   document.getElementById('cohortLeg').innerHTML = [
     {c:'#3b82f6',l:'M-3 ~ M-1'},{c:'#0d9e5c',l:'M0 (bulan dipilih)'},{c:'#f59e0b',l:'M+1 ~ M+3'},
-    {c:'#e03131',l:'Target 30%',dash:true},
+    {c:'#e03131',l:'Target 35%',dash:true},
   ].map(x=>`<span class="leg-item"><span class="leg-dot" style="background:${x.dash?'transparent':'x.c'};${x.dash?'border-top:2px dashed #e03131;border-radius:0;width:14px;height:2px;':'background:'+x.c+';'}"></span>${x.l}</span>`).join('');
 
   // Per-cohort mini cards
@@ -1405,7 +1405,7 @@ function renderCohortSection(data) {
     const t = ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo).length;
     const p = ALL.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length;
     const pct = t ? Math.round(p/t*100) : 0;
-    const pctColor = pct>=30?'var(--green)':pct>=20?'var(--amber)':'var(--red)';
+    const pctColor = pct>=35?'var(--green)':pct>=20?'var(--amber)':'var(--red)';
     return `<div style="background:var(--surface2);border-radius:12px;padding:12px 14px;min-width:120px;flex:1;">
       <div style="font-size:11px;font-weight:700;color:${barColors[i]};">${labels[i].split(' ')[0]}</div>
       <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">${mo||'—'}</div>
