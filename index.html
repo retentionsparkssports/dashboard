@@ -208,6 +208,7 @@ td.muted{color:var(--text2);}
     <button class="top-tab active" onclick="showPage('dashboard',this)">Dashboard</button>
     <button class="top-tab" onclick="showPage('students',this)">Siswa</button>
     <button class="top-tab" onclick="showPage('sa',this)">SA Performance</button>
+    <button class="top-tab" onclick="showPage('center',this)">Per Center</button>
   </div>
 </nav>
 
@@ -242,6 +243,7 @@ td.muted{color:var(--text2);}
       <select id="fRetStatus" onchange="applyFilters()"><option value="">Semua Status</option></select>
       <select id="fPkg" onchange="applyFilters()"><option value="">Semua Paket</option></select>
       <select id="fMonth" onchange="applyFilters()"><option value="">Semua Bulan</option></select>
+      <select id="fSA" onchange="applyFilters()"><option value="">Semua SAR</option></select>
       <div class="fd"></div>
       <div class="toggle-wrap">
         <span>Hanya SAR Aktif</span>
@@ -251,12 +253,14 @@ td.muted{color:var(--text2);}
       <button class="reset-btn" onclick="resetFilters()">Reset</button>
     </div>
     <div class="mg" id="metricsGrid"></div>
-    <div class="cg3">
-      <div class="cc">
-        <div class="cc-head"><div><div class="cc-title">Retention Status</div><div class="cc-sub">Distribusi status semua siswa</div></div></div>
-        <div class="cw" style="height:180px;"><canvas id="retStatusChart"></canvas></div>
-        <div class="leg" id="retStatusLeg"></div>
+    <div class="cc" style="margin-bottom:20px;">
+      <div class="cc-head"><div><div class="cc-title">Retention Status</div><div class="cc-sub">Distribusi status semua siswa</div></div></div>
+      <div style="display:flex;gap:28px;align-items:center;flex-wrap:wrap;">
+        <div class="cw" style="height:320px;width:320px;flex-shrink:0;"><canvas id="retStatusChart"></canvas></div>
+        <div class="leg" id="retStatusLeg" style="flex:1;min-width:220px;flex-direction:column;gap:10px;"></div>
       </div>
+    </div>
+    <div class="cg3">
       <div class="cc">
         <div class="cc-head"><div><div class="cc-title">Churn Reason</div><div class="cc-sub">Top alasan churn</div></div></div>
         <div class="bl" id="churnBars" style="margin-top:4px;"></div>
@@ -264,6 +268,11 @@ td.muted{color:var(--text2);}
       <div class="cc">
         <div class="cc-head"><div><div class="cc-title">Age Group</div><div class="cc-sub">Distribusi usia siswa</div></div></div>
         <div class="cw" style="height:200px;"><canvas id="ageChart"></canvas></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Retention Cycle</div><div class="cc-sub">Distribusi siklus retensi (kol. W)</div></div></div>
+        <div class="cw" style="height:200px;"><canvas id="retCycleChart"></canvas></div>
+        <div class="leg" id="retCycleLeg" style="margin-top:10px;"></div>
       </div>
     </div>
     <div class="cg2">
@@ -274,17 +283,6 @@ td.muted{color:var(--text2);}
       <div class="cc">
         <div class="cc-head"><div><div class="cc-title">Paket Berlangganan</div><div class="cc-sub">Distribusi jenis paket</div></div></div>
         <div class="bl" id="pkgBars" style="margin-top:4px;"></div>
-      </div>
-    </div>
-    <div class="cg2">
-      <div class="cc">
-        <div class="cc-head"><div><div class="cc-title">Churn Categorization</div><div class="cc-sub">Kategori final alasan churn</div></div></div>
-        <div class="cw" style="height:200px;"><canvas id="churnCatChart"></canvas></div>
-      </div>
-      <div class="cc">
-        <div class="cc-head"><div><div class="cc-title">Final Verdict</div><div class="cc-sub">Addressable vs structural vs uncategorized</div></div></div>
-        <div class="cw" style="height:200px;"><canvas id="verdictChart"></canvas></div>
-        <div class="leg" id="verdictLeg"></div>
       </div>
     </div>
     <!-- COHORT SECTION — only visible when a specific month is picked -->
@@ -355,6 +353,10 @@ td.muted{color:var(--text2);}
       <div class="ph-sub">Performa Student Advisor per branch</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;background:var(--surface2);border-radius:10px;padding:3px;">
+        <button class="top-tab active" id="saViewTiersBtn" onclick="setSAView('tiers')" style="padding:6px 14px;">Tiers</button>
+        <button class="top-tab" id="saViewLeaderboardBtn" onclick="setSAView('leaderboard')" style="padding:6px 14px;">Leaderboard</button>
+      </div>
       <select id="saMonth" onchange="renderSA()">
         <option value="">Semua Bulan</option>
       </select>
@@ -364,6 +366,45 @@ td.muted{color:var(--text2);}
   <div id="sarDebug" class="sar-debug" style="display:none;"></div>
   <div id="saNote"></div>
   <div id="saTiers"></div>
+  <div id="saLeaderboardWrap" style="display:none;">
+    <div class="cc">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nama</th>
+              <th>Center</th>
+              <th>Total</th>
+              <th>Retained</th>
+              <th>Not Ret.</th>
+              <th>Undecided</th>
+              <th>Ret/Total %</th>
+              <th>Ret/Resp %</th>
+            </tr>
+          </thead>
+          <tbody id="saLeaderboardBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CENTER PAGE -->
+<div class="page" id="page-center">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">Performa per Center</div>
+      <div class="ph-sub">Retention rate & status per branch</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select id="cMonth" onchange="renderCenterPerf()">
+        <option value="">Semua Bulan</option>
+      </select>
+    </div>
+  </div>
+  <div id="centerNote" class="sa-note"></div>
+  <div class="sa-grid" id="centerGrid"></div>
 </div>
 
 <!-- MODAL -->
@@ -626,10 +667,29 @@ function loadSARSheet() {
 function tryRender() {
   if (mainLoaded && sarLoaded) {
     computeSAREligibility();
+    populateSAFilter(); // needs SA_ELIGIBILITY for display names
     updateDashboard();
     renderSA();
     populateAllSAMonths(); // refresh SA month dropdown with real data
+    populateMonthSelect('cMonth', getAllMonths(ALL));
+    if (document.getElementById('page-center').classList.contains('active')) renderCenterPerf();
   }
+}
+
+// Dashboard's "Filter by SAR" dropdown — one entry per distinct SA name
+// (normalized, merging spelling variants), sorted alphabetically by
+// display name.
+function populateSAFilter() {
+  const el = document.getElementById('fSA');
+  if (!el) return;
+  const cur = el.value;
+  const keys = [...new Set(ALL.map(d => d.sa_ret).filter(Boolean).map(normName))];
+  const options = keys.map(key => ({
+    key, label: SA_ELIGIBILITY[key]?.displayName || key
+  })).sort((a,b) => a.label.localeCompare(b.label));
+  el.innerHTML = `<option value="">Semua SAR</option>` +
+    options.map(o => `<option value="${o.key}">${o.label}</option>`).join('');
+  if (options.some(o => o.key === cur)) el.value = cur;
 }
 
 // =====================================================================
@@ -797,6 +857,7 @@ function processMainRows(rows) {
       sa_ret:       row[13]?.trim() || '',
       pkg_type:     row[17]?.trim() || '',
       age_exp:      col(row,'age exp date',18) || row[18]?.trim() || '',
+      ret_cycle:    row[22]?.trim() || '',
       exp_payment:  row[20]?.trim() || '',
       ret_status:   col(row,'retention status',21),
       churn_reason: col(row,'churn reason',23) || row[23]?.trim() || '',
@@ -813,6 +874,8 @@ function processMainRows(rows) {
   console.log(`Rows with FP Date filled: ${ALL.filter(d=>d.fp_date).length} / ${ALL.length}` +
     ` — Rows with FP Amount filled: ${ALL.filter(d=>d.fp_amount).length} / ${ALL.length}` +
     ` — Rows with Expiry Date filled: ${ALL.filter(d=>d.expiry_date).length} / ${ALL.length}`);
+  console.log('Distinct ret_cycle (col W) values found: ' +
+    JSON.stringify([...new Set(ALL.map(d=>d.ret_cycle).filter(Boolean))].sort()));
   const unparsedExpiry = ALL.filter(d => d.expiry_date && !parseDateFull(d.expiry_date));
   if (unparsedExpiry.length) {
     console.warn(`Expiry Date present but unparseable in ${unparsedExpiry.length} row(s). Sample raw value: "${unparsedExpiry[0].expiry_date}"`);
@@ -1003,22 +1066,24 @@ function toggleActiveSA() {
 // =====================================================================
 function applyFilters() {
   const bSet = multiSelects['fBranchMS'] ? multiSelects['fBranchMS'].getSelected() : new Set();
-  const a  = document.getElementById('fAgeGroup').value;
-  const s  = document.getElementById('fRetStatus').value;
-  const p  = document.getElementById('fPkg').value;
-  const mo = document.getElementById('fMonth').value;
+  const a   = document.getElementById('fAgeGroup').value;
+  const s   = document.getElementById('fRetStatus').value;
+  const p   = document.getElementById('fPkg').value;
+  const mo  = document.getElementById('fMonth').value;
+  const sa  = document.getElementById('fSA').value;
 
   filtered = filterByMonth(ALL, mo).filter(d =>
     (!bSet.size || bSet.has(d.branch)) &&
     (!a || d.age_group === a) &&
     (!s || d.ret_status === s) &&
-    (!p || d.pkg_type === p)
+    (!p || d.pkg_type === p) &&
+    (!sa || normName(d.sa_ret) === sa)
   );
   updateDashboard();
 }
 
 function resetFilters() {
-  ['fAgeGroup','fRetStatus','fPkg','fMonth'].forEach(id => document.getElementById(id).value = '');
+  ['fAgeGroup','fRetStatus','fPkg','fMonth','fSA'].forEach(id => document.getElementById(id).value = '');
   if (multiSelects['fBranchMS']) multiSelects['fBranchMS'].clear();
   filtered = [...ALL];
   updateDashboard();
@@ -1046,11 +1111,10 @@ function updateDashboard() {
   renderMetrics(data, paidData);
   renderRetStatus(data);
   renderAgeChart(data);
+  renderRetCycle(data);
   renderBranchChart(data);
   renderChurnBars(data);
   renderPkgBars(data);
-  renderChurnCat(data);
-  renderVerdict(data);
   renderCohortSection(data);
 }
 
@@ -1145,6 +1209,29 @@ function renderMetrics(data, paidData) {
 // =====================================================================
 const CHART_BASE = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} };
 
+// Draws a value + label in the center of a doughnut chart when
+// chart.$centerTotal is set (e.g. {value: 1234, label: 'Total Cohort'}).
+Chart.register({
+  id: 'centerTotalText',
+  afterDraw(chart) {
+    const ct = chart.$centerTotal;
+    if (!ct || !chart.chartArea) return;
+    const { ctx, chartArea } = chart;
+    const x = (chartArea.left + chartArea.right) / 2;
+    const y = (chartArea.top + chartArea.bottom) / 2;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = "800 28px 'DM Sans', sans-serif";
+    ctx.fillStyle = '#0f1117';
+    ctx.fillText(ct.value.toLocaleString(), x, y - 10);
+    ctx.font = "600 11px 'Plus Jakarta Sans', sans-serif";
+    ctx.fillStyle = '#9ba3bd';
+    ctx.fillText(ct.label, x, y + 14);
+    ctx.restore();
+  }
+});
+
 function mkChart(id, type, labels, datasets, extra={}) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -1177,9 +1264,15 @@ function renderRetStatus(data) {
     {l:'Paid retention', v:paidN, c:'#1a7a4a'},
     ...statuses.map((s,i) => ({l:s.length>22?s.slice(0,22)+'…':s, v:data.filter(d=>d.ret_status===s&&!isPaid(d)).length, c:colors[i]}))
   ].filter(x=>x.v>0);
+  const total = entries.reduce((sum,x) => sum+x.v, 0);
+  const pct = v => total ? Math.round(v/total*100) : 0;
 
-  mkChart('retStatusChart','doughnut', entries.map(x=>x.l), [{data:entries.map(x=>x.v),backgroundColor:entries.map(x=>x.c),borderWidth:0,hoverOffset:4}],{cutout:'65%'});
-  document.getElementById('retStatusLeg').innerHTML = entries.map(x=>`<span class="leg-item"><span class="leg-dot" style="background:${x.c}"></span>${x.l}: <strong>${x.v}</strong></span>`).join('');
+  mkChart('retStatusChart','doughnut', entries.map(x=>x.l),
+    [{data:entries.map(x=>x.v),backgroundColor:entries.map(x=>x.c),borderWidth:0,hoverOffset:4}],
+    {cutout:'65%', plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed} (${pct(ctx.parsed)}%)`}}}});
+  charts['retStatusChart'].$centerTotal = { value: total, label: 'Total Cohort' };
+  charts['retStatusChart'].update('none');
+  document.getElementById('retStatusLeg').innerHTML = entries.map(x=>`<span class="leg-item"><span class="leg-dot" style="background:${x.c}"></span>${x.l}: <strong>${x.v}</strong> (${pct(x.v)}%)</span>`).join('');
 }
 
 function renderAgeChart(data) {
@@ -1188,6 +1281,21 @@ function renderAgeChart(data) {
   const counts = order.map(k=>data.filter(d=>d.age_group===k).length);
   mkChart('ageChart','bar',labels,[{data:counts,backgroundColor:['#B5D4F4','#85B7EB','#378ADD','#1a5fa8'],borderRadius:5,borderWidth:0}],
     {scales:{y:{ticks:{color:'#9ba3bd'},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true},x:{ticks:{color:'#9ba3bd'},grid:{display:false}}}});
+}
+
+function renderRetCycle(data) {
+  const cycles = [...new Set(data.map(d=>d.ret_cycle).filter(Boolean))]
+    .sort((a,b) => (parseInt(a)||0) - (parseInt(b)||0));
+  const colors = ['#0d9e5c','#2563eb','#d97706','#7c3aed','#e03131','#0891b2','#e8440c'];
+  const counts = cycles.map(c => data.filter(d=>d.ret_cycle===c).length);
+  const total  = counts.reduce((s,v)=>s+v, 0);
+  const pct    = v => total ? Math.round(v/total*100) : 0;
+
+  mkChart('retCycleChart','doughnut', cycles.map(c=>`Ret ${c}`),
+    [{data:counts, backgroundColor:cycles.map((c,i)=>colors[i%colors.length]), borderWidth:0, hoverOffset:4}],
+    {cutout:'65%', plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed} (${pct(ctx.parsed)}%)`}}}});
+  document.getElementById('retCycleLeg').innerHTML = cycles.map((c,i) =>
+    `<span class="leg-item"><span class="leg-dot" style="background:${colors[i%colors.length]}"></span>Ret ${c}: <strong>${counts[i]}</strong> (${pct(counts[i])}%)</span>`).join('');
 }
 
 function renderBranchChart(data) {
@@ -1204,23 +1312,6 @@ function renderBranchChart(data) {
 
 function renderChurnBars(data) { renderBars('churnBars', counter(data,'churn_reason'), '#c0392b'); }
 function renderPkgBars(data)   { renderBars('pkgBars',   counter(data,'pkg_type'),     '#378ADD'); }
-
-function renderChurnCat(data) {
-  const c = counter(data,'churn_cat');
-  const keys = Object.keys(c).filter(k=>k&&!k.startsWith('#')).sort((a,b)=>c[b]-c[a]);
-  const colors = ['#e03131','#f97316','#f59e0b','#7c3aed','#2563eb','#0d9e5c','#b4b2a9'];
-  mkChart('churnCatChart','bar',keys,[{data:keys.map(k=>c[k]),backgroundColor:keys.map((k,i)=>k==='Uncategorized'?'#d1d5db':colors[i%colors.length]),borderRadius:5,borderWidth:0}],
-    {scales:{y:{ticks:{color:'#9ba3bd'},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true},x:{ticks:{color:'#9ba3bd',maxRotation:30},grid:{display:false}}}});
-}
-
-function renderVerdict(data) {
-  const c = counter(data,'final_verdict');
-  const keys   = ['Addressable','Structural','Uncategorized'];
-  const colors = ['#0d9e5c','#e03131','#d1d5db'];
-  const entries = keys.map((k,i)=>({k,v:c[k]||0,c:colors[i]})).filter(x=>x.v>0);
-  mkChart('verdictChart','doughnut', entries.map(x=>x.k),[{data:entries.map(x=>x.v),backgroundColor:entries.map(x=>x.c),borderWidth:0,hoverOffset:4}],{cutout:'65%'});
-  document.getElementById('verdictLeg').innerHTML = entries.map(x=>`<span class="leg-item"><span class="leg-dot" style="background:${x.c}"></span>${x.k}: <strong>${x.v}</strong></span>`).join('');
-}
 
 // =====================================================================
 // COHORT CHART (only when a specific month is selected)
@@ -1517,6 +1608,41 @@ function renderSA() {
       </div>
     </div>`;
   }).join('');
+
+  renderSALeaderboard(eligibleSA);
+}
+
+// Sortable-by-eye leaderboard table, alongside the tier card view.
+// "Retained"/"Not Ret."/"Undecided" reuse the same Paid/Churned/Unsure
+// breakdown used everywhere else, rather than introducing a new category
+// scheme. Ret/Resp % excludes Undecided from the denominator (retention
+// rate among SA who've actually reached a decision either way).
+function renderSALeaderboard(eligibleSA) {
+  const rows = [...eligibleSA].sort((a,b) => b.rate-a.rate);
+  document.getElementById('saLeaderboardBody').innerHTML = rows.map((sa,i) => {
+    const responded = sa.paid + sa.churned;
+    const respPct = responded ? Math.round(sa.paid/responded*100) : 0;
+    const rateColor = sa.rate>=35?'var(--green)':sa.rate>=30?'var(--amber)':sa.rate>=25?'#f97316':'var(--red)';
+    const safeKey = sa.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<tr onclick="openSADetail('${safeKey}')">
+      <td class="muted">${i+1}</td>
+      <td><strong>${sa.name}</strong></td>
+      <td class="muted">${[...sa.branches].join(', ')}</td>
+      <td>${sa.total}</td>
+      <td style="color:var(--green);font-weight:700;">${sa.paid}</td>
+      <td style="color:var(--red);font-weight:700;">${sa.churned}</td>
+      <td style="color:var(--amber);font-weight:700;">${sa.unsure}</td>
+      <td style="color:${rateColor};font-weight:800;">${sa.rate}%</td>
+      <td class="muted">${respPct}%</td>
+    </tr>`;
+  }).join('');
+}
+
+function setSAView(view) {
+  document.getElementById('saTiers').style.display = view==='tiers' ? 'block' : 'none';
+  document.getElementById('saLeaderboardWrap').style.display = view==='leaderboard' ? 'block' : 'none';
+  document.getElementById('saViewTiersBtn').classList.toggle('active', view==='tiers');
+  document.getElementById('saViewLeaderboardBtn').classList.toggle('active', view==='leaderboard');
 }
 
 function openSADetail(key) {
@@ -1590,6 +1716,69 @@ function closeModal() { document.getElementById('overlay').classList.remove('ope
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
 
 // =====================================================================
+// CENTER PERFORMANCE PAGE
+// =====================================================================
+// Reuses the same Retained/Not Retained/Undecided (Paid/Churned/Unsure)
+// definitions used everywhere else, and the same Total-vs-Paid split
+// (Total uses isRetentionEligible; Paid doesn't) — see updateDashboard.
+function renderCenterPerf() {
+  if (!ALL.length) return;
+  const mo = document.getElementById('cMonth').value;
+  const base = filterByMonth(ALL, mo);
+  const data = base.filter(isRetentionEligible);
+  const paidData = base;
+
+  const branchMap = {};
+  data.forEach(d => {
+    if (!branchMap[d.branch]) branchMap[d.branch] = { branch: d.branch, total: 0, paid: 0, churned: 0, unsure: 0 };
+    const b = branchMap[d.branch];
+    b.total++;
+    if (d.ret_status === 'Churned') b.churned++;
+    else if (!isPaid(d)) b.unsure++;
+  });
+  paidData.forEach(d => {
+    if (!isPaid(d)) return;
+    const b = branchMap[d.branch];
+    if (b) b.paid++;
+  });
+
+  const centers = Object.values(branchMap).map(b => ({
+    ...b, rate: b.total ? Math.round(b.paid / b.total * 100) : 0
+  })).sort((a, b) => b.rate - a.rate);
+
+  document.getElementById('centerNote').textContent =
+    'Retained / Not Retained / Undecided menggunakan definisi yang sama dengan halaman Dashboard (Paid Retention / Churned / Belum Dipastikan).';
+
+  document.getElementById('centerGrid').innerHTML = centers.map(c => {
+    const rateColor = c.rate>=35?'var(--green)':c.rate>=30?'var(--amber)':c.rate>=25?'#f97316':'var(--red)';
+    return `<div class="sa-card">
+      <div class="sa-name" style="font-size:16px;">${BRANCH_NAMES[c.branch]||c.branch} <span style="font-size:11px;color:var(--text3);font-weight:600;">(${c.branch})</span></div>
+      <div style="display:flex;align-items:center;gap:14px;margin:10px 0;">
+        <div style="width:88px;height:88px;flex-shrink:0;"><canvas id="centerChart_${c.branch}"></canvas></div>
+        <div>
+          <div style="font-size:26px;font-weight:800;color:${rateColor};font-family:'DM Sans',sans-serif;">${c.rate}%</div>
+          <div style="font-size:11px;color:var(--text3);">${c.paid}/${c.total} retained</div>
+        </div>
+      </div>
+      <div class="sa-stats">
+        <div class="sa-row"><span>Total siswa</span><span>${c.total}</span></div>
+        <div class="sa-row"><span>Retained</span><span style="color:var(--green);">${c.paid}</span></div>
+        <div class="sa-row"><span>Not Retained</span><span style="color:var(--red);">${c.churned}</span></div>
+        <div class="sa-row"><span>Undecided</span><span style="color:var(--amber);">${c.unsure}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Canvases only exist after the innerHTML assignment above, so charts
+  // are created in a second pass.
+  centers.forEach(c => {
+    mkChart(`centerChart_${c.branch}`, 'doughnut', ['Retained','Not Retained','Undecided'],
+      [{ data: [c.paid, c.churned, c.unsure], backgroundColor: ['#0d9e5c','#e03131','#d97706'], borderWidth: 0, hoverOffset: 3 }],
+      { cutout: '60%' });
+  });
+}
+
+// =====================================================================
 // FILE UPLOAD FALLBACK
 // =====================================================================
 function showUploadFallback(msg) {
@@ -1617,11 +1806,12 @@ function parseCSV(file) {
 // =====================================================================
 function showPage(id, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.topbar .top-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if (btn) btn.classList.add('active');
   if (id==='students' && ALL.length) renderTable();
   if (id==='sa'       && ALL.length) renderSA();
+  if (id==='center'   && ALL.length) renderCenterPerf();
 }
 
 // =====================================================================
