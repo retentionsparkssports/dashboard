@@ -398,16 +398,23 @@ const TODAY = new Date();
 // =====================================================================
 // GOOGLE SHEETS URLS
 // =====================================================================
-// Main retention database (published via File > Publish to web)
-const MAIN_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQeIA2oXKEneJoX7243gCkDS7uU1YZIZK8BzcLuJDrqsmpSp0TbvyKdvZrxbzq2rzG4ac8kX6BtuJHx/pub?gid=398767044&single=true&output=csv';
+// "All Retention Database" workbook — holds both the main retention data
+// (Compiled Retention tab) and the SAR Dictionary tab.
+const RETENTION_WORKBOOK_ID = '1gGYi_MnlQgNpv1u8JeNCPicgP54utpv3Ue3wPWb3cQ0';
+
+// Main retention database — the "Compiled Retention" tab specifically.
+// Previously pointed at a stale "Publish to web" link for a different tab
+// (wrong column layout — FP Date/FP Amount weren't even where expected).
+// Loaded by gid, which is stable across tab renames.
+const MAIN_SHEET_GID = '909854396';
+const MAIN_CSV = `https://docs.google.com/spreadsheets/d/${RETENTION_WORKBOOK_ID}/gviz/tq?tqx=out:csv&gid=${MAIN_SHEET_GID}`;
 
 // SAR Dictionary — the original "[Automated] SAR Database" sheet
 // (1OGZnco...) is not shared for anonymous CSV export, so we instead read
-// its "SAR Dictionary" tab in the "All Retention Database" workbook — the
-// same workbook MAIN_CSV already reads from — which mirrors it via
+// its "SAR Dictionary" tab in the same workbook, which mirrors it via
 // IMPORTRANGE. Loaded by gid (stable across tab renames), with the sheet
 // name and a "pub" export as fallbacks.
-const SAR_SHEET_ID   = '1gGYi_MnlQgNpv1u8JeNCPicgP54utpv3Ue3wPWb3cQ0';
+const SAR_SHEET_ID   = RETENTION_WORKBOOK_ID;
 const SAR_SHEET_GID  = '1188717085';
 const SAR_SHEET_NAME = 'SAR Dictionary';
 const SAR_CSV = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SAR_SHEET_GID}`;
@@ -755,14 +762,14 @@ function processMainRows(rows) {
     }
   }
 
-  console.log('Main sheet column mapping (by header name lookup):', {
+  console.log('Main sheet column mapping (by header name lookup): ' + JSON.stringify({
     'retention status':     hIdx['retention status']     ?? '(not found — using fallback index 21/V)',
     'fp date (mm/dd/yyyy)': hIdx['fp date (mm/dd/yyyy)'] ?? '(not found — using fallback index 34/AI)',
     'fp amount':            hIdx['fp amount']            ?? '(not found — using fallback index 35/AJ)',
-  });
+  }));
   if (headerRowArr) {
-    console.log('Header row, columns index 18-38 (~S-AM):',
-      headerRowArr.slice(18, 39).map((h, i) => `[${18 + i}] "${h}"`));
+    console.log('FULL header row (' + headerRowArr.length + ' columns): ' +
+      headerRowArr.map((h, i) => `[${i}] "${h}"`).join('  |  '));
   }
 
   const col = (row, name, fallback) => {
