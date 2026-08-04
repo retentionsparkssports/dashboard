@@ -499,6 +499,19 @@ if (m) {
     if (idx >= 0) return new Date(yr, idx, +m[1]);
   }
   // "16-Sep-2025" already handled above
+
+  // Indonesian month names (e.g. "15 Juli 2026", "Juli 2026", "15-Juli-2026")
+  // — JS's native Date parser below only understands English month names,
+  // so dates typed with Indonesian months would otherwise silently fail.
+  const monthIdx = MONTH_NAMES.findIndex(mn => new RegExp(`(^|[^a-z])${mn}([^a-z]|$)`, 'i').test(s));
+  if (monthIdx >= 0) {
+    const yearMatch = s.match(/\b(\d{4})\b/);
+    if (yearMatch) {
+      const dayMatch = s.match(/\b(\d{1,2})\b/);
+      return new Date(+yearMatch[1], monthIdx, dayMatch ? +dayMatch[1] : 1);
+    }
+  }
+
   // Fallback for anything else the browser can make sense of
   // (e.g. "16 September 2025", "Sep 16, 2025")
   const nd = new Date(s);
@@ -991,8 +1004,8 @@ function updateDashboard() {
 // METRICS
 // =====================================================================
 const hasValue = v => !!v && !v.startsWith('#') && v.trim() !== '';
-const PAID_STATUSES = ['Paid retention', 'Paid - Cicil'];
-const isPaid = d => PAID_STATUSES.includes(d.ret_status) && hasValue(d.fp_date) && hasValue(d.fp_amount);
+const PAID_STATUSES = ['paid retention', 'paid - cicil'];
+const isPaid = d => PAID_STATUSES.includes((d.ret_status || '').trim().toLowerCase()) && hasValue(d.fp_date) && hasValue(d.fp_amount);
 
 function renderMetrics(data) {
   const total   = data.length;
@@ -1018,7 +1031,7 @@ function renderMetrics(data) {
 
   document.getElementById('metricsGrid').innerHTML = `
     <div class="mc c-blue fade-in"><div class="mc-icon">👤</div><div class="mc-val">${total.toLocaleString()}</div><div class="mc-label">Total Siswa</div><div class="mc-sub">dari ${ALL.length.toLocaleString()} total</div></div>
-    <div class="mc c-green fade-in"><div class="mc-icon">✅</div><div class="mc-val">${paid.toLocaleString()}</div><div class="mc-label">Paid retention</div><div class="mc-sub">${subHtml}</div></div>
+    <div class="mc c-green fade-in"><div class="mc-icon">✅</div><div class="mc-val">${paid.toLocaleString()}</div><div class="mc-label">Paid Retention</div><div class="mc-sub">${subHtml}</div></div>
     <div class="mc c-red fade-in"><div class="mc-icon">❌</div><div class="mc-val">${churned.toLocaleString()}</div><div class="mc-label">Churned</div><div class="mc-sub">${total?Math.round(churned/total*100):0}% dari total</div></div>
     <div class="mc c-amber fade-in"><div class="mc-icon">⏳</div><div class="mc-val">${unsure.toLocaleString()}</div><div class="mc-label">Belum Dipastikan</div><div class="mc-sub">Perlu follow-up</div></div>
     <div class="mc c-purple fade-in"><div class="mc-icon">🏢</div><div class="mc-val">${[...new Set(data.map(d=>d.branch))].length}</div><div class="mc-label">Branch Aktif</div><div class="mc-sub">dari ${BRANCHES.length} total</div></div>`;
@@ -1415,7 +1428,7 @@ function openSADetail(name) {
     <div style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:6px;">${eligBadge}</div>
     <div class="m-grid">
       <div class="m-stat"><div class="m-stat-l">Total Siswa (filter aktif)</div><div class="m-stat-v">${rows.length}</div></div>
-      <div class="m-stat"><div class="m-stat-l">Paid retention</div><div class="m-stat-v" style="color:var(--green);">${paidN}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Paid Retention</div><div class="m-stat-v" style="color:var(--green);">${paidN}</div></div>
       <div class="m-stat"><div class="m-stat-l">Churned</div><div class="m-stat-v" style="color:var(--red);">${rows.filter(d=>d.ret_status==='Churned').length}</div></div>
       <div class="m-stat"><div class="m-stat-l">Retention Rate</div><div class="m-stat-v">${rows.length?Math.round(paidN/rows.length*100):0}%</div></div>
     </div>
