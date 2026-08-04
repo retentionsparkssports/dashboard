@@ -386,6 +386,12 @@ const BRANCH_NAMES = {BDM:'Bandung Melong',BSD:'BSD',CKR:'Cikaret',HIB:'HIB',KGD
 const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const PAGE_SIZE = 50;
 
+// Canonical key for an SA name — case/whitespace variants of the same
+// name (typos, extra spaces, inconsistent casing) in the "SA Retention"
+// column would otherwise be treated as different SAs, splitting one
+// person's totals across multiple entries.
+const normName = s => (s || '').toLowerCase().trim();
+
 // The real today — used for 3-month tenure eligibility
 const TODAY = new Date();
 
@@ -686,34 +692,45 @@ function computeSAREligibility() {
   SA_ELIGIBILITY = {};
   if (!sarLoaded || SAR_ROWS.length === 0) return;
 
-  // Get all SA names that appear in the retention data
-  const saNames = [...new Set(ALL.map(d => d.sa_ret).filter(Boolean))];
+  // Get all SA names that appear in the retention data, keyed by their
+  // normalized form so spelling/casing/whitespace variants of the same
+  // person merge into one entry instead of being treated as separate SAs.
+  const keyToRawNames = {};
+  ALL.forEach(d => {
+    if (!d.sa_ret) return;
+    const key = normName(d.sa_ret);
+    (keyToRawNames[key] = keyToRawNames[key] || new Set()).add(d.sa_ret);
+  });
 
   const threeMonthsAgo = new Date(TODAY.getFullYear(), TODAY.getMonth() - 3, TODAY.getDate());
 
   // Tenure start per SA = earliest last_mem_date across all of their assigned
-  // students (regardless of current retention status).
-  const tenureStartByName = {};
+  // students (regardless of current retention status), merged across any
+  // spelling variants of their name.
+  const tenureStartByKey = {};
   ALL.forEach(d => {
     if (!d.sa_ret) return;
     const dt = parseDateFull(d.last_mem_date);
     if (!dt || isNaN(dt)) return;
-    if (!tenureStartByName[d.sa_ret] || dt < tenureStartByName[d.sa_ret]) {
-      tenureStartByName[d.sa_ret] = dt;
+    const key = normName(d.sa_ret);
+    if (!tenureStartByKey[key] || dt < tenureStartByKey[key]) {
+      tenureStartByKey[key] = dt;
     }
   });
 
-  saNames.forEach(name => {
-    const key = name.toLowerCase().trim();
+  Object.keys(keyToRawNames).forEach(key => {
     const dict = SAR_MAP[key];
     const mapped  = !!dict;
     const rawStatus = dict ? dict.status : '';
     const active  = mapped && rawStatus.toLowerCase().startsWith('active');
-    const tenureStart = tenureStartByName[name] || null;
+    const tenureStart = tenureStartByKey[key] || null;
     // 3-month rule: tenure start must exist AND be at least 3 months before today
     const eligible = active && tenureStart !== null && tenureStart <= threeMonthsAgo;
+    // Prefer the SAR Dictionary's registered spelling for display; else the
+    // first spelling variant encountered in the retention data.
+    const displayName = dict ? dict.codeName : [...keyToRawNames[key]][0];
 
-    SA_ELIGIBILITY[name] = { mapped, active, eligible, tenureStart, rawStatus };
+    SA_ELIGIBILITY[key] = { mapped, active, eligible, tenureStart, rawStatus, displayName, variants: [...keyToRawNames[key]] };
   });
 
   console.log('SA Eligibility computed:', SA_ELIGIBILITY);
@@ -984,7 +1001,7 @@ function updateDashboard() {
   if (showOnlyActiveSA && SAR_ROWS.length > 0) {
     data = data.filter(d => {
       if (!d.sa_ret) return true; // no SA assigned — keep
-      const e = SA_ELIGIBILITY[d.sa_ret];
+      const e = SA_ELIGIBILITY[normName(d.sa_ret)];
       return e && e.active; // only keep if SA is Active in dictionary
     });
   }
@@ -1314,12 +1331,18 @@ function renderSA() {
   if (branchSet.size) data = data.filter(d => branchSet.has(d.branch));
   saLastData = data;
 
-  // Build per-SA stats
+  // Build per-SA stats — grouped by normalized name so spelling/casing/
+  // whitespace variants of the same SA merge into one entry instead of
+  // splitting their totals across multiple cards (see normName above).
   const saMap = {};
   data.forEach(d => {
     if (!d.sa_ret) return;
-    if (!saMap[d.sa_ret]) saMap[d.sa_ret] = {name:d.sa_ret, total:0, paid:0, churned:0, unsure:0, branches:new Set()};
-    const sa = saMap[d.sa_ret];
+    const key = normName(d.sa_ret);
+    if (!saMap[key]) {
+      const displayName = SA_ELIGIBILITY[key]?.displayName || d.sa_ret;
+      saMap[key] = {key, name:displayName, total:0, paid:0, churned:0, unsure:0, branches:new Set()};
+    }
+    const sa = saMap[key];
     sa.total++;
     sa.branches.add(d.branch);
     if (isPaid(d))                sa.paid++;
@@ -1337,7 +1360,7 @@ function renderSA() {
   let notMapped = 0, notActive = 0, notTenured = 0;
   const eligibleSA = dictLoaded
     ? allSA.filter(sa => {
-        const e = SA_ELIGIBILITY[sa.name];
+        const e = SA_ELIGIBILITY[sa.key];
         if (!e || !e.mapped) { notMapped++;  return false; }
         if (!e.active)       { notActive++;  return false; }
         if (!e.eligible)     { notTenured++; return false; }
@@ -1365,7 +1388,7 @@ function renderSA() {
     const color    = avatarColors[i % avatarColors.length];
     const initials = sa.name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
     const rateColor = sa.rate>=35?'var(--green)':sa.rate>=30?'var(--amber)':sa.rate>=25?'#f97316':'var(--red)';
-    const safeName  = sa.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const safeKey   = sa.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<div class="sa-card">
       <div class="sa-avatar" style="background:${color};">${initials}</div>
       <div class="sa-name">${sa.name}</div>
@@ -1377,7 +1400,7 @@ function renderSA() {
         <div class="sa-row"><span>Retention rate</span><span style="font-weight:800;color:${rateColor};">${sa.rate}%</span></div>
         <div class="sa-row"><span>Branch</span><span style="font-size:11px;color:var(--text2);">${[...sa.branches].join(', ')}</span></div>
       </div>
-      <button class="sa-detail-btn" onclick="event.stopPropagation();openSADetail('${safeName}')">📊 Detail Status Cohort</button>
+      <button class="sa-detail-btn" onclick="event.stopPropagation();openSADetail('${safeKey}')">📊 Detail Status Cohort</button>
     </div>`;
   };
 
@@ -1400,12 +1423,17 @@ function renderSA() {
   }).join('');
 }
 
-function openSADetail(name) {
-  const rows = saLastData.filter(d => d.sa_ret === name);
+function openSADetail(key) {
+  const rows = saLastData.filter(d => normName(d.sa_ret) === key);
   const statusCounts   = counter(rows,'ret_status');
   const churnCatCounts = counter(rows,'churn_cat');
   const paidN = rows.filter(isPaid).length;
-  const e = SA_ELIGIBILITY[name];
+  const e = SA_ELIGIBILITY[key];
+  const displayName = e?.displayName || (rows[0] && rows[0].sa_ret) || key;
+
+  const variantsNote = e && e.variants.length > 1
+    ? `<span class="pill pill-purple">Digabung dari ${e.variants.length} ejaan: ${e.variants.join(', ')}</span>`
+    : '';
 
   const eligBadge = e
     ? [
@@ -1418,6 +1446,7 @@ function openSADetail(name) {
         e.eligible
           ? `<span class="pill pill-green">✓ Eligible Leaderboard</span>`
           : `<span class="pill pill-amber">✗ Belum 3 bulan / tidak eligible</span>`,
+        variantsNote,
       ].join(' ')
     : '<span class="pill pill-gray">Tidak ditemukan di SAR Dictionary</span>';
 
@@ -1426,7 +1455,7 @@ function openSADetail(name) {
   const churnRows  = Object.entries(churnCatCounts).filter(([k])=>k&&k!=='Uncategorized').sort((a,b)=>b[1]-a[1])
     .map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><span>${k}</span><strong>${v}</strong></div>`).join('');
 
-  document.getElementById('mTitle').textContent = `Detail SA — ${name}`;
+  document.getElementById('mTitle').textContent = `Detail SA — ${displayName}`;
   document.getElementById('mBody').innerHTML = `
     <div style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:6px;">${eligBadge}</div>
     <div class="m-grid">
