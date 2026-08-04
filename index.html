@@ -750,6 +750,7 @@ function processMainRows(rows) {
       ret_status:   col(row,'retention status',21),
       churn_reason: col(row,'churn reason',23) || row[23]?.trim() || '',
       fp_date:      col(row,'fp date (mm/dd/yyyy)',34) || row[34]?.trim() || '',
+      fp_amount:    col(row,'fp amount',35) || row[35]?.trim() || '',
       churn_cat:    row[46]?.trim() || col(row,'churn categorizations',46) || 'Uncategorized',
       final_verdict:row[47]?.trim() || col(row,'final verdict',47) || 'Uncategorized',
     });
@@ -989,7 +990,9 @@ function updateDashboard() {
 // =====================================================================
 // METRICS
 // =====================================================================
-const isPaid = d => d.fp_date && !d.fp_date.startsWith('#') && d.fp_date.trim() !== '';
+const hasValue = v => !!v && !v.startsWith('#') && v.trim() !== '';
+const PAID_STATUSES = ['Paid Retention', 'Paid - Cicil'];
+const isPaid = d => PAID_STATUSES.includes(d.ret_status) && hasValue(d.fp_date) && hasValue(d.fp_amount);
 
 function renderMetrics(data) {
   const total   = data.length;
