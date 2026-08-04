@@ -1314,11 +1314,15 @@ function renderSA() {
 
   const dictLoaded = SAR_ROWS.length > 0;
 
-  // Apply eligibility filter
+  // Apply eligibility filter, tracking *why* each excluded SA was excluded
+  let notMapped = 0, notActive = 0, notTenured = 0;
   const eligibleSA = dictLoaded
     ? allSA.filter(sa => {
         const e = SA_ELIGIBILITY[sa.name];
-        return e && e.mapped && e.active && e.eligible;
+        if (!e || !e.mapped) { notMapped++;  return false; }
+        if (!e.active)       { notActive++;  return false; }
+        if (!e.eligible)     { notTenured++; return false; }
+        return true;
       })
     : allSA;
 
@@ -1326,7 +1330,7 @@ function renderSA() {
 
   // Note banner
   document.getElementById('saNote').innerHTML = dictLoaded
-    ? `<div class="sa-note">📋 Hanya SA berstatus <strong>Active</strong> di SAR Dictionary dan sudah bekerja ≥ 3 bulan (dihitung dari <em>last membership date</em> siswa pertama yang ditugaskan ke SA tsb) yang muncul di leaderboard. <strong>${hiddenCount} SA</strong> disembunyikan (resign / belum 3 bulan / tidak terdaftar).</div>`
+    ? `<div class="sa-note">📋 Hanya SA berstatus <strong>Active</strong> di SAR Dictionary dan sudah bekerja ≥ 3 bulan (dihitung dari <em>last membership date</em> siswa pertama yang ditugaskan ke SA tsb) yang muncul di leaderboard. <strong>${hiddenCount} SA</strong> disembunyikan — ${notMapped} tidak terdaftar di SAR Dictionary, ${notActive} berstatus tidak Active, ${notTenured} belum 3 bulan.</div>`
     : `<div class="sa-note">⚠️ SAR Dictionary belum berhasil dimuat — menampilkan semua SA tanpa filter eligibility.</div>`;
 
   const tierDefs = [
