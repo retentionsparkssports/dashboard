@@ -108,7 +108,7 @@ select:focus,input:focus{outline:none;border-color:var(--accent);background:#fff
 .br-label{font-size:12px;font-weight:500;color:var(--text2);width:140px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .br-track{flex:1;height:8px;background:var(--surface2);border-radius:6px;overflow:hidden;}
 .br-fill{height:100%;border-radius:6px;}
-.br-val{font-size:11px;font-weight:700;color:var(--text);width:40px;text-align:right;}
+.br-val{font-size:11px;font-weight:700;color:var(--text);width:80px;text-align:right;white-space:nowrap;flex-shrink:0;}
 /* TABLE */
 .table-wrap{overflow-x:auto;margin-top:14px;}
 table{width:100%;border-collapse:collapse;font-size:13px;min-width:900px;}
@@ -268,6 +268,7 @@ td.muted{color:var(--text2);}
       <div class="cc">
         <div class="cc-head"><div><div class="cc-title">Age Group</div><div class="cc-sub">Distribusi usia siswa</div></div></div>
         <div class="cw" style="height:200px;"><canvas id="ageChart"></canvas></div>
+        <div class="leg" id="ageLeg" style="margin-top:10px;"></div>
       </div>
       <div class="cc">
         <div class="cc-head"><div><div class="cc-title">Retention Cycle</div><div class="cc-sub">Distribusi siklus retensi (kol. W)</div></div></div>
@@ -315,6 +316,7 @@ td.muted{color:var(--text2);}
     <select id="sStatus" onchange="renderTable()"><option value="">Semua Status</option></select>
     <select id="sAge" onchange="renderTable()"><option value="">Semua Usia</option></select>
     <select id="sMonth" onchange="renderTable()"><option value="">Semua Bulan</option></select>
+    <select id="sSA" onchange="renderTable()"><option value="">Semua SAR</option></select>
     <div class="fd"></div>
     <div class="search-wrap">
       <span class="search-icon">🔍</span>
@@ -422,8 +424,8 @@ td.muted{color:var(--text2);}
 // =====================================================================
 // CONSTANTS
 // =====================================================================
-const BRANCHES = ['BDM','BSD','CKR','HIB','KGD','KLM','KMP','KWC','MRG','PJR','PJT','SBG','SBK','TGC','TJD','YGC'];
-const BRANCH_NAMES = {BDM:'Bandung Merdeka',BSD:'BSD',CKR:'Cikarang',HIB:'Harapan Indah Bekasi',KGD:'Kelapa Gading',KLM:'Kalimalang',KMP:'Kemang Pratama',KWC:'Karawaci',MRG:'Margonda',PJR:'Pajajaran',PJT:'Pejaten',SBG:'Surabaya Gubeng',SBK:'Surabaya Klampis',TGC:'Tangerang City',TJD:'Tanjung Duren',YGC:'Yogyakarta'};
+const BRANCHES = ['BDM','BLS','BSD','CKR','HIB','KGD','KLM','KMP','KWC','MRG','PJR','PJT','PML','SBG','SBK','STR','TGC','TJD','YGC'];
+const BRANCH_NAMES = {BDM:'Bandung Merdeka',BLS:'Bali',BSD:'BSD',CKR:'Cikarang',HIB:'Harapan Indah Bekasi',KGD:'Kelapa Gading',KLM:'Kalimalang',KMP:'Kemang Pratama',KWC:'Karawaci',MRG:'Margonda',PJR:'Pajajaran',PJT:'Pejaten',PML:'Pamulang',SBG:'Surabaya Gubeng',SBK:'Surabaya Klampis',STR:'Sunter',TGC:'Tangerang City',TJD:'Tanjung Duren',YGC:'Yogyakarta'};
 const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const PAGE_SIZE = 50;
 
@@ -493,6 +495,10 @@ const charts = {};
 // data behind the SA page (for the detail modal)
 let saLastData = [];  // eligibility-filtered — Total/Churned/Unsure breakdown
 let saPaidData = [];  // NOT eligibility-filtered — Paid uses a different formula
+
+// data behind the Per Center page (for the detail modal), same split
+let centerLastData = [];
+let centerPaidData = [];
 
 // =====================================================================
 // DATE HELPERS
@@ -667,7 +673,8 @@ function loadSARSheet() {
 function tryRender() {
   if (mainLoaded && sarLoaded) {
     computeSAREligibility();
-    populateSAFilter(); // needs SA_ELIGIBILITY for display names
+    populateSAFilter('fSA'); // needs SA_ELIGIBILITY for display names
+    populateSAFilter('sSA');
     updateDashboard();
     renderSA();
     populateAllSAMonths(); // refresh SA month dropdown with real data
@@ -676,11 +683,11 @@ function tryRender() {
   }
 }
 
-// Dashboard's "Filter by SAR" dropdown — one entry per distinct SA name
-// (normalized, merging spelling variants), sorted alphabetically by
-// display name.
-function populateSAFilter() {
-  const el = document.getElementById('fSA');
+// "Filter by SAR" dropdown(s) — one entry per distinct SA name (normalized,
+// merging spelling variants), sorted alphabetically by display name. Used
+// on both the Dashboard (#fSA) and Students (#sSA) pages.
+function populateSAFilter(id = 'fSA') {
+  const el = document.getElementById(id);
   if (!el) return;
   const cur = el.value;
   const keys = [...new Set(ALL.map(d => d.sa_ret).filter(Boolean).map(normName))];
@@ -849,6 +856,7 @@ function processMainRows(rows) {
     const ag = row[7]?.trim() || '';
     ALL.push({
       branch, sid, name,
+      parent_phone: row[3]?.trim() || '',
       age_group:    ['#N/A','#VALUE!','#REF!','#NUM!','#ERROR!'].includes(ag) ? '' : ag,
       class1:       row[8]?.trim()  || '',
       ret_flag:     row[10]?.trim() || '',
@@ -861,6 +869,7 @@ function processMainRows(rows) {
       exp_payment:  row[20]?.trim() || '',
       ret_status:   col(row,'retention status',21),
       churn_reason: col(row,'churn reason',23) || row[23]?.trim() || '',
+      notes:        col(row,'response notes',24) || row[24]?.trim() || '',
       fp_date:      col(row,'fp date (mm/dd/yyyy)',34) || row[34]?.trim() || '',
       fp_amount:    col(row,'fp amount',35) || row[35]?.trim() || '',
       expiry_date:  col(row,'expiry date',48) || row[48]?.trim() || '',
@@ -876,6 +885,10 @@ function processMainRows(rows) {
     ` — Rows with Expiry Date filled: ${ALL.filter(d=>d.expiry_date).length} / ${ALL.length}`);
   console.log('Distinct ret_cycle (col W) values found: ' +
     JSON.stringify([...new Set(ALL.map(d=>d.ret_cycle).filter(Boolean))].sort()));
+  console.log(`Rows with notes (col Y, "Response Notes") filled: ${ALL.filter(d=>d.notes).length} / ${ALL.length}. ` +
+    `Sample: ${JSON.stringify(ALL.filter(d=>d.notes).slice(0,3).map(d=>({name:d.name, notes:d.notes})))}`);
+  console.log(`Rows with parent_phone (col D) filled: ${ALL.filter(d=>d.parent_phone).length} / ${ALL.length}. ` +
+    `Sample: ${JSON.stringify(ALL.filter(d=>d.parent_phone).slice(0,3).map(d=>({name:d.name, parent_phone:d.parent_phone})))}`);
   const unparsedExpiry = ALL.filter(d => d.expiry_date && !parseDateFull(d.expiry_date));
   if (unparsedExpiry.length) {
     console.warn(`Expiry Date present but unparseable in ${unparsedExpiry.length} row(s). Sample raw value: "${unparsedExpiry[0].expiry_date}"`);
@@ -1244,15 +1257,15 @@ function counter(arr, key) {
 }
 
 function renderBars(containerId, obj, color, max=8) {
-  const sorted = Object.entries(obj)
-    .filter(([k]) => k && k !== 'Uncategorized' && !k.startsWith('#'))
-    .sort((a,b) => b[1]-a[1]).slice(0, max);
+  const all = Object.entries(obj).filter(([k]) => k && k !== 'Uncategorized' && !k.startsWith('#'));
+  const total = all.reduce((s,[,v]) => s+v, 0);
+  const sorted = all.sort((a,b) => b[1]-a[1]).slice(0, max);
   const maxVal = sorted[0]?.[1] || 1;
   document.getElementById(containerId).innerHTML = sorted.map(([label,count]) => `
     <div class="br">
       <span class="br-label" title="${label}">${label}</span>
       <div class="br-track"><div class="br-fill" style="width:${Math.round(count/maxVal*100)}%;background:${color};"></div></div>
-      <span class="br-val">${count.toLocaleString()}</span>
+      <span class="br-val">${count.toLocaleString()} <span style="color:var(--text3);font-weight:600;">(${total?Math.round(count/total*100):0}%)</span></span>
     </div>`).join('');
 }
 
@@ -1293,9 +1306,15 @@ function renderRetStatus(data, paidData) {
 function renderAgeChart(data) {
   const order  = ['12-23 MONTHS','24-35 MONTHS','3-4 YO','5-7+ YO'];
   const labels = ['12–23 bln','24–35 bln','3–4 th','5–7+ th'];
+  const colors = ['#B5D4F4','#85B7EB','#378ADD','#1a5fa8'];
   const counts = order.map(k=>data.filter(d=>d.age_group===k).length);
-  mkChart('ageChart','bar',labels,[{data:counts,backgroundColor:['#B5D4F4','#85B7EB','#378ADD','#1a5fa8'],borderRadius:5,borderWidth:0}],
-    {scales:{y:{ticks:{color:'#9ba3bd'},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true},x:{ticks:{color:'#9ba3bd'},grid:{display:false}}}});
+  const total  = counts.reduce((s,v)=>s+v, 0);
+  const pct    = v => total ? Math.round(v/total*100) : 0;
+  mkChart('ageChart','bar',labels,[{data:counts,backgroundColor:colors,borderRadius:5,borderWidth:0}],
+    {scales:{y:{ticks:{color:'#9ba3bd'},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true},x:{ticks:{color:'#9ba3bd'},grid:{display:false}}},
+     plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed.y} (${pct(ctx.parsed.y)}%)`}}}});
+  document.getElementById('ageLeg').innerHTML = labels.map((l,i) =>
+    `<span class="leg-item"><span class="leg-dot" style="background:${colors[i]}"></span>${l}: <strong>${counts[i]}</strong> (${pct(counts[i])}%)</span>`).join('');
 }
 
 function renderRetCycle(data) {
@@ -1441,7 +1460,7 @@ function churnPill(c) {
 }
 
 function resetStudentFilters() {
-  ['sStatus','sAge','sMonth'].forEach(id => document.getElementById(id).value='');
+  ['sStatus','sAge','sMonth','sSA'].forEach(id => document.getElementById(id).value='');
   if (multiSelects['sBranchMS']) multiSelects['sBranchMS'].clear();
   document.getElementById('sSearch').value = '';
   renderTable();
@@ -1458,10 +1477,12 @@ function renderTable() {
   const s  = document.getElementById('sStatus').value;
   const a  = document.getElementById('sAge').value;
   const mo = document.getElementById('sMonth').value;
+  const sa = document.getElementById('sSA').value;
   const q  = document.getElementById('sSearch').value.toLowerCase();
 
   let rows = filterByMonth(ALL, mo).filter(d =>
     (!bSet.size||bSet.has(d.branch)) && (!s||d.ret_status===s) && (!a||d.age_group===a) &&
+    (!sa||normName(d.sa_ret)===sa) &&
     (!q||(d.name.toLowerCase().includes(q)||d.sid.toLowerCase().includes(q)))
   );
   rows.sort((a,b) => {
@@ -1711,6 +1732,8 @@ function openSADetail(key) {
 // =====================================================================
 function openModal(idx) {
   const d = ALL[idx];
+  const lastMemDt = parseDateFull(d.last_mem_date);
+  const lastMemDisplay = lastMemDt ? lastMemDt.toLocaleDateString('id-ID') : (d.last_mem_date || '—');
   document.getElementById('mTitle').textContent = d.name;
   document.getElementById('mBody').innerHTML = `
     <div class="m-grid">
@@ -1718,10 +1741,13 @@ function openModal(idx) {
       <div class="m-stat"><div class="m-stat-l">Student ID</div><div class="m-stat-v" style="font-size:13px;">${d.sid}</div></div>
       <div class="m-stat"><div class="m-stat-l">Age Group</div><div class="m-stat-v">${d.age_group||'—'}</div></div>
       <div class="m-stat"><div class="m-stat-l">Paket</div><div class="m-stat-v" style="font-size:13px;">${d.pkg_type||'—'}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Last Membership Date</div><div class="m-stat-v" style="font-size:13px;">${lastMemDisplay}</div></div>
+      <div class="m-stat"><div class="m-stat-l">No. HP Orang Tua</div><div class="m-stat-v" style="font-size:13px;">${d.parent_phone||'—'}</div></div>
     </div>
     <div style="margin-bottom:12px;">${statusPill(d.ret_status)}</div>
     ${d.class1?`<div class="m-sec"><div class="m-sec-t">Kelas</div><div class="m-sec-b">${d.class1}</div></div>`:''}
     <div class="m-sec"><div class="m-sec-t">SA Retention</div><div class="m-sec-b">${d.sa_ret||'—'}</div></div>
+    ${d.notes?`<div class="m-sec"><div class="m-sec-t">Notes</div><div class="m-sec-b">${d.notes}</div></div>`:''}
     ${d.churn_cat&&d.churn_cat!=='Uncategorized'?`<div class="m-sec"><div class="m-sec-t">Churn Category</div><div class="m-sec-b">${d.churn_cat}</div></div>`:''}
     ${d.final_verdict&&d.final_verdict!=='Uncategorized'?`<div class="m-sec"><div class="m-sec-t">Final Verdict</div><div class="m-sec-b">${d.final_verdict}</div></div>`:''}
     ${d.exp_payment&&!d.exp_payment.startsWith('#')?`<div class="m-sec"><div class="m-sec-t">Expected Payment</div><div class="m-sec-b">${d.exp_payment}</div></div>`:''}`;
@@ -1742,14 +1768,17 @@ function renderCenterPerf() {
   const base = filterByMonth(ALL, mo);
   const data = base.filter(isRetentionEligible);
   const paidData = base;
+  centerLastData = data;
+  centerPaidData = paidData;
 
   const branchMap = {};
   data.forEach(d => {
-    if (!branchMap[d.branch]) branchMap[d.branch] = { branch: d.branch, total: 0, paid: 0, churned: 0, unsure: 0 };
+    if (!branchMap[d.branch]) branchMap[d.branch] = { branch: d.branch, total: 0, paid: 0, churned: 0, unsure: 0, sars: new Set() };
     const b = branchMap[d.branch];
     b.total++;
     if (d.ret_status === 'Churned') b.churned++;
     else if (!isPaid(d)) b.unsure++;
+    if (d.sa_ret) b.sars.add(SA_ELIGIBILITY[normName(d.sa_ret)]?.displayName || d.sa_ret);
   });
   paidData.forEach(d => {
     if (!isPaid(d)) return;
@@ -1762,10 +1791,11 @@ function renderCenterPerf() {
   })).sort((a, b) => b.rate - a.rate);
 
   document.getElementById('centerNote').textContent =
-    'Retained / Not Retained / Undecided menggunakan definisi yang sama dengan halaman Dashboard (Paid Retention / Churned / Belum Dipastikan).';
+    'Retained / Not Retained / Undecided menggunakan definisi yang sama dengan halaman Dashboard (Paid Retention / Churned / Belum Dipastikan). Klik "Lihat Detail" untuk breakdown status lengkap.';
 
   document.getElementById('centerGrid').innerHTML = centers.map(c => {
     const rateColor = c.rate>=35?'var(--green)':c.rate>=30?'var(--amber)':c.rate>=25?'#f97316':'var(--red)';
+    const sarList = [...c.sars].sort();
     return `<div class="sa-card">
       <div class="sa-name" style="font-size:16px;">${BRANCH_NAMES[c.branch]||c.branch} <span style="font-size:11px;color:var(--text3);font-weight:600;">(${c.branch})</span></div>
       <div style="display:flex;align-items:center;gap:14px;margin:10px 0;">
@@ -1781,6 +1811,11 @@ function renderCenterPerf() {
         <div class="sa-row"><span>Not Retained</span><span style="color:var(--red);">${c.churned}</span></div>
         <div class="sa-row"><span>Undecided</span><span style="color:var(--amber);">${c.unsure}</span></div>
       </div>
+      <div style="margin-top:10px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:5px;">SAR (${sarList.length})</div>
+        <div style="font-size:11px;color:var(--text2);line-height:1.6;">${sarList.length ? sarList.join(', ') : '—'}</div>
+      </div>
+      <button class="sa-detail-btn" onclick="event.stopPropagation();openCenterDetail('${c.branch}')">📊 Lihat Detail</button>
     </div>`;
   }).join('');
 
@@ -1791,6 +1826,31 @@ function renderCenterPerf() {
       [{ data: [c.paid, c.churned, c.unsure], backgroundColor: ['#0d9e5c','#e03131','#d97706'], borderWidth: 0, hoverOffset: 3 }],
       { cutout: '60%' });
   });
+}
+
+function openCenterDetail(branch) {
+  const rows = centerLastData.filter(d => d.branch === branch);
+  const paidRows = centerPaidData.filter(d => d.branch === branch && isPaid(d));
+  const statusCounts = counter(rows.filter(d => !isPaid(d)), 'ret_status');
+  const sarList = [...new Set(rows.filter(d=>d.sa_ret).map(d => SA_ELIGIBILITY[normName(d.sa_ret)]?.displayName || d.sa_ret))].sort();
+
+  const statusRows = [
+    `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><span>Paid Retention</span><strong style="color:var(--green);">${paidRows.length}</strong></div>`,
+    ...Object.entries(statusCounts).sort((a,b)=>b[1]-a[1])
+      .map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><span>${k||'—'}</span><strong>${v}</strong></div>`)
+  ].join('');
+
+  document.getElementById('mTitle').textContent = `Detail Center — ${BRANCH_NAMES[branch]||branch} (${branch})`;
+  document.getElementById('mBody').innerHTML = `
+    <div class="m-grid">
+      <div class="m-stat"><div class="m-stat-l">Total Siswa</div><div class="m-stat-v">${rows.length}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Paid Retention</div><div class="m-stat-v" style="color:var(--green);">${paidRows.length}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Churned</div><div class="m-stat-v" style="color:var(--red);">${rows.filter(d=>d.ret_status==='Churned').length}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Retention Rate</div><div class="m-stat-v">${rows.length?Math.round(paidRows.length/rows.length*100):0}%</div></div>
+    </div>
+    <div class="m-sec"><div class="m-sec-t">Status Retention Lengkap</div><div class="m-sec-b">${statusRows||'—'}</div></div>
+    <div class="m-sec"><div class="m-sec-t">SAR di Center Ini (${sarList.length})</div><div class="m-sec-b">${sarList.join(', ')||'—'}</div></div>`;
+  document.getElementById('overlay').classList.add('open');
 }
 
 // =====================================================================
