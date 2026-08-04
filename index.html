@@ -800,15 +800,21 @@ function processMainRows(rows) {
       churn_reason: col(row,'churn reason',23) || row[23]?.trim() || '',
       fp_date:      col(row,'fp date (mm/dd/yyyy)',34) || row[34]?.trim() || '',
       fp_amount:    col(row,'fp amount',35) || row[35]?.trim() || '',
+      expiry_date:  col(row,'expiry date',48) || row[48]?.trim() || '',
       churn_cat:    row[46]?.trim() || col(row,'churn categorizations',46) || 'Uncategorized',
       final_verdict:row[47]?.trim() || col(row,'final verdict',47) || 'Uncategorized',
     });
   }
 
-  console.log('Sample of parsed rows (ret_status / fp_date / fp_amount):',
-    ALL.slice(0, 5).map(d => ({ name: d.name, ret_status: d.ret_status, fp_date: d.fp_date, fp_amount: d.fp_amount })));
+  console.log('Sample of parsed rows (ret_status / fp_date / fp_amount / expiry_date):',
+    ALL.slice(0, 5).map(d => ({ name: d.name, ret_status: d.ret_status, fp_date: d.fp_date, fp_amount: d.fp_amount, expiry_date: d.expiry_date })));
   console.log(`Rows with FP Date filled: ${ALL.filter(d=>d.fp_date).length} / ${ALL.length}` +
-    ` — Rows with FP Amount filled: ${ALL.filter(d=>d.fp_amount).length} / ${ALL.length}`);
+    ` — Rows with FP Amount filled: ${ALL.filter(d=>d.fp_amount).length} / ${ALL.length}` +
+    ` — Rows with Expiry Date filled: ${ALL.filter(d=>d.expiry_date).length} / ${ALL.length}`);
+  const unparsedExpiry = ALL.filter(d => d.expiry_date && !parseDateFull(d.expiry_date));
+  if (unparsedExpiry.length) {
+    console.warn(`Expiry Date present but unparseable in ${unparsedExpiry.length} row(s). Sample raw value: "${unparsedExpiry[0].expiry_date}"`);
+  }
 
   setLoading(80);
   initFilters();
@@ -879,13 +885,13 @@ function getAllMonths(data) {
   const seen = new Set();
   let unparsed = 0, sampleRaw = null;
   data.forEach(d => {
-    if (!d.last_mem_date) return;
-    const mo = extractMonthLabel(d.last_mem_date);
+    if (!d.expiry_date) return;
+    const mo = extractMonthLabel(d.expiry_date);
     if (mo) seen.add(mo);
-    else { unparsed++; if (sampleRaw === null) sampleRaw = d.last_mem_date; }
+    else { unparsed++; if (sampleRaw === null) sampleRaw = d.expiry_date; }
   });
   if (unparsed > 0 && seen.size === 0) {
-    console.warn(`getAllMonths: could not parse any of ${unparsed} last_mem_date value(s). Sample raw value: "${sampleRaw}"`);
+    console.warn(`getAllMonths: could not parse any of ${unparsed} expiry_date value(s). Sample raw value: "${sampleRaw}"`);
   }
   return [...seen].sort((a, b) => monthLabelToSortKey(a) - monthLabelToSortKey(b));
 }
@@ -909,9 +915,9 @@ function filterByMonth(data, monthVal) {
   if (!monthVal) return data;
   if (monthVal === 'LAST3') {
     const set = new Set(getLast3MonthLabels());
-    return data.filter(d => set.has(extractMonthLabel(d.last_mem_date)));
+    return data.filter(d => set.has(extractMonthLabel(d.expiry_date)));
   }
-  return data.filter(d => extractMonthLabel(d.last_mem_date) === monthVal);
+  return data.filter(d => extractMonthLabel(d.expiry_date) === monthVal);
 }
 
 // =====================================================================
@@ -1183,8 +1189,8 @@ function renderCohortSection(data) {
     return o===0 ? `M0 (${mo})` : `M${o>0?'+':''}${o} (${mo})`;
   });
 
-  const counts  = months.map(mo => ALL.filter(d => extractMonthLabel(d.last_mem_date)===mo && isPaid(d)).length);
-  const totals  = months.map(mo => ALL.filter(d => extractMonthLabel(d.last_mem_date)===mo).length);
+  const counts  = months.map(mo => ALL.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length);
+  const totals  = months.map(mo => ALL.filter(d => extractMonthLabel(d.expiry_date)===mo).length);
   const targets = totals.map((t,i) => i >= 3 ? Math.round(t*0.30) : null);
 
   const barColors = ['#93c5fd','#60a5fa','#3b82f6','#0d9e5c','#fcd34d','#f59e0b','#d97706'];
@@ -1209,8 +1215,8 @@ function renderCohortSection(data) {
     }
   });
 
-  const m0Total = ALL.filter(d => extractMonthLabel(d.last_mem_date)===selectedMonth).length;
-  const m0Paid  = ALL.filter(d => extractMonthLabel(d.last_mem_date)===selectedMonth && isPaid(d)).length;
+  const m0Total = ALL.filter(d => extractMonthLabel(d.expiry_date)===selectedMonth).length;
+  const m0Paid  = ALL.filter(d => extractMonthLabel(d.expiry_date)===selectedMonth && isPaid(d)).length;
   document.getElementById('cohortStats').innerHTML = `
     <div style="text-align:center;padding:6px 14px;background:var(--surface2);border-radius:8px;">
       <div style="font-size:18px;font-weight:800;font-family:'DM Sans',sans-serif;">${m0Total}</div>
@@ -1233,7 +1239,7 @@ function renderCohortSection(data) {
   // Per-cohort mini cards
   const cards = offsets.map((o,i) => {
     const mo = months[i];
-    const cohort = ALL.filter(d => extractMonthLabel(d.last_mem_date)===mo);
+    const cohort = ALL.filter(d => extractMonthLabel(d.expiry_date)===mo);
     const t = cohort.length;
     const p = cohort.filter(isPaid).length;
     const pct = t ? Math.round(p/t*100) : 0;
