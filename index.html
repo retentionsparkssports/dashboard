@@ -450,7 +450,8 @@ const multiSelects = {};
 const charts = {};
 
 // data behind the SA page (for the detail modal)
-let saLastData = [];
+let saLastData = [];  // eligibility-filtered — Total/Churned/Unsure breakdown
+let saPaidData = [];  // NOT eligibility-filtered — Paid uses a different formula
 
 // =====================================================================
 // DATE HELPERS
@@ -1028,18 +1029,21 @@ function resetFilters() {
 // =====================================================================
 function updateDashboard() {
   if (!ALL.length) return;
-  let data = filtered.filter(isRetentionEligible);
 
-  // Filter out students whose SA is not Active (when toggle is on AND SAR is loaded)
-  if (showOnlyActiveSA && SAR_ROWS.length > 0) {
-    data = data.filter(d => {
-      if (!d.sa_ret) return true; // no SA assigned — keep
-      const e = SA_ELIGIBILITY[normName(d.sa_ret)];
-      return e && e.active; // only keep if SA is Active in dictionary
-    });
-  }
+  const activeSAFilter = d => {
+    if (!showOnlyActiveSA || SAR_ROWS.length === 0) return true;
+    if (!d.sa_ret) return true; // no SA assigned — keep
+    const e = SA_ELIGIBILITY[normName(d.sa_ret)];
+    return e && e.active; // only keep if SA is Active in dictionary
+  };
 
-  renderMetrics(data);
+  // Total Siswa / Churned / etc. use the sheet's Total formula's population
+  // (isRetentionEligible). Paid Retention uses the sheet's separate Paid
+  // formula, which has no such exclusions — see paidData below.
+  let data = filtered.filter(isRetentionEligible).filter(activeSAFilter);
+  let paidData = filtered.filter(activeSAFilter);
+
+  renderMetrics(data, paidData);
   renderRetStatus(data);
   renderAgeChart(data);
   renderBranchChart(data);
@@ -1105,9 +1109,10 @@ function debugPaidMismatches(monthLabel) {
   });
 }
 
-function renderMetrics(data) {
+function renderMetrics(data, paidData) {
+  paidData = paidData || data;
   const total   = data.length;
-  const paid    = data.filter(isPaid).length;
+  const paid    = paidData.filter(isPaid).length;
   const churned = data.filter(d => d.ret_status === 'Churned').length;
   const unsure  = data.filter(d => ['Still unsure','Asked - still no response','Not yet been asked','Not yet asked'].includes(d.ret_status)).length;
   const retRate = total ? Math.round(paid/total*100) : 0;
@@ -1115,9 +1120,9 @@ function renderMetrics(data) {
   const selectedMonth = document.getElementById('fMonth').value;
   let subHtml = `${retRate}% retention rate`;
   if (selectedMonth && selectedMonth !== 'LAST3' && paid > 0) {
-    const m0  = data.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===selectedMonth).length;
-    const m1  = data.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===shiftMonth(selectedMonth,-1)).length;
-    const m2  = data.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===shiftMonth(selectedMonth,-2)).length;
+    const m0  = paidData.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===selectedMonth).length;
+    const m1  = paidData.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===shiftMonth(selectedMonth,-1)).length;
+    const m2  = paidData.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===shiftMonth(selectedMonth,-2)).length;
     const pct = n => total ? Math.round(n/total*100) : 0;
     subHtml = `<div style="font-size:10px;color:var(--text3);margin-top:6px;display:flex;flex-direction:column;gap:2px;">
       <div style="display:flex;justify-content:space-between;"><span>M0</span><span style="font-weight:700;color:var(--green);">${pct(m0)}%</span></div>
@@ -1237,7 +1242,11 @@ function renderCohortSection(data) {
     return o===0 ? `M0 (${mo})` : `M${o>0?'+':''}${o} (${mo})`;
   });
 
-  const counts  = months.map(mo => ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length);
+  // Paid uses the sheet's Paid formula (date range + status match only, no
+  // eligibility exclusions); Total uses the sheet's Total formula (which
+  // does apply them) — the two formulas use different criteria in the
+  // source sheet, so they're computed from different populations here too.
+  const counts  = months.map(mo => ALL.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length);
   const totals  = months.map(mo => ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo).length);
   const targets = totals.map((t,i) => i >= 3 ? Math.round(t*0.30) : null);
 
@@ -1264,7 +1273,7 @@ function renderCohortSection(data) {
   });
 
   const m0Total = ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===selectedMonth).length;
-  const m0Paid  = ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===selectedMonth && isPaid(d)).length;
+  const m0Paid  = ALL.filter(d => extractMonthLabel(d.expiry_date)===selectedMonth && isPaid(d)).length;
   document.getElementById('cohortStats').innerHTML = `
     <div style="text-align:center;padding:6px 14px;background:var(--surface2);border-radius:8px;">
       <div style="font-size:18px;font-weight:800;font-family:'DM Sans',sans-serif;">${m0Total}</div>
@@ -1287,9 +1296,8 @@ function renderCohortSection(data) {
   // Per-cohort mini cards
   const cards = offsets.map((o,i) => {
     const mo = months[i];
-    const cohort = ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo);
-    const t = cohort.length;
-    const p = cohort.filter(isPaid).length;
+    const t = ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo).length;
+    const p = ALL.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length;
     const pct = t ? Math.round(p/t*100) : 0;
     const pctColor = pct>=30?'var(--green)':pct>=20?'var(--amber)':'var(--red)';
     return `<div style="background:var(--surface2);border-radius:12px;padding:12px 14px;min-width:120px;flex:1;">
@@ -1405,9 +1413,15 @@ function renderSA() {
   if (!ALL.length) return;
   const branchSet = multiSelects['saBranchMS'] ? multiSelects['saBranchMS'].getSelected() : new Set();
   const mo = document.getElementById('saMonth').value;
-  let data = filterByMonth(ALL, mo).filter(isRetentionEligible);
-  if (branchSet.size) data = data.filter(d => branchSet.has(d.branch));
+  let base = filterByMonth(ALL, mo);
+  if (branchSet.size) base = base.filter(d => branchSet.has(d.branch));
+  // Total/Churned/Unsure use the sheet's Total formula's population
+  // (isRetentionEligible); Paid uses the sheet's separate Paid formula,
+  // which has no such exclusions — same split as updateDashboard.
+  let data = base.filter(isRetentionEligible);
+  let paidData = base;
   saLastData = data;
+  saPaidData = paidData;
 
   // Build per-SA stats — grouped by normalized name so spelling/casing/
   // whitespace variants of the same SA merge into one entry instead of
@@ -1423,9 +1437,13 @@ function renderSA() {
     const sa = saMap[key];
     sa.total++;
     sa.branches.add(d.branch);
-    if (isPaid(d))                sa.paid++;
-    else if (d.ret_status==='Churned') sa.churned++;
-    else sa.unsure++;
+    if (d.ret_status==='Churned') sa.churned++;
+    else if (!isPaid(d)) sa.unsure++;
+  });
+  paidData.forEach(d => {
+    if (!d.sa_ret || !isPaid(d)) return;
+    const sa = saMap[normName(d.sa_ret)];
+    if (sa) sa.paid++;
   });
 
   const allSA = Object.values(saMap).map(sa => ({
@@ -1505,7 +1523,7 @@ function openSADetail(key) {
   const rows = saLastData.filter(d => normName(d.sa_ret) === key);
   const statusCounts   = counter(rows,'ret_status');
   const churnCatCounts = counter(rows,'churn_cat');
-  const paidN = rows.filter(isPaid).length;
+  const paidN = saPaidData.filter(d => normName(d.sa_ret) === key && isPaid(d)).length;
   const e = SA_ELIGIBILITY[key];
   const displayName = e?.displayName || (rows[0] && rows[0].sa_ret) || key;
 
