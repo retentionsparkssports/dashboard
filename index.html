@@ -1077,6 +1077,34 @@ const isRetentionEligible = d => {
   return true;
 };
 
+// Console debug helper — call debugPaidMismatches('Juli 2026') to find rows
+// whose Retention Status looks like it should count as Paid but doesn't
+// exactly match PAID_STATUSES (whitespace, dash character, typo, etc.).
+function debugPaidMismatches(monthLabel) {
+  const rows = ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date) === monthLabel);
+  const nearMiss = {};
+  rows.forEach(d => {
+    const raw = d.ret_status || '';
+    const norm = raw.trim().toLowerCase();
+    if (PAID_STATUSES.includes(norm)) return;
+    if (norm.includes('paid') || norm.includes('cicil')) {
+      if (!nearMiss[raw]) nearMiss[raw] = { count: 0, names: [] };
+      nearMiss[raw].count++;
+      nearMiss[raw].names.push(d.name);
+    }
+  });
+  const entries = Object.entries(nearMiss).sort((a, b) => b[1].count - a[1].count);
+  if (!entries.length) {
+    console.log(`debugPaidMismatches("${monthLabel}"): no near-miss "paid"/"cicil" statuses found among eligible rows — the gap is likely duplicate rows or a live-data timing difference, not a text-matching issue.`);
+    return;
+  }
+  console.log(`debugPaidMismatches("${monthLabel}"): near-miss statuses that look like they should count as Paid —`);
+  entries.forEach(([status, info]) => {
+    const codes = [...status].map(c => c.charCodeAt(0)).join(',');
+    console.log(`  "${status}" (${info.count} row[s], names: ${info.names.slice(0,5).join(', ')}${info.names.length>5?', ...':''}) — char codes: [${codes}]`);
+  });
+}
+
 function renderMetrics(data) {
   const total   = data.length;
   const paid    = data.filter(isPaid).length;
