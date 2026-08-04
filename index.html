@@ -417,7 +417,7 @@ let currentPage = 1;
 // SAR Dictionary state
 let SAR_ROWS = [];           // raw parsed rows [{codeName, status, joinDate}, ...]
 let SAR_MAP  = {};           // codeName (lowercase) -> {codeName, status, joinDate}
-let SA_ELIGIBILITY = {};     // codeName -> {active, eligible, joinDate, rawStatus}
+let SA_ELIGIBILITY = {};     // codeName -> {active, eligible, tenureStart, rawStatus}
 let sarLoaded = false;
 let showOnlyActiveSA = true;
 
@@ -439,7 +439,10 @@ let saLastData = [];
 // =====================================================================
 function parseDateFull(val) {
   if (!val || val.startsWith('#') || val.trim() === '') return null;
-  const s = val.trim();
+  // Strip a trailing time-of-day component (e.g. "9/16/2025 0:00:00",
+  // "2025-09-16T00:00:00.000Z") — Google Sheets CSV exports often include
+  // this even for date-only cells, which breaks the anchored regexes below.
+  const s = val.trim().replace(/[T ]\d{1,2}:\d{2}.*/i, '').trim();
   let m;
   // YYYY-MM-DD
   m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -491,6 +494,12 @@ if (m) {
     if (idx >= 0) return new Date(yr, idx, +m[1]);
   }
   // "16-Sep-2025" already handled above
+  // Fallback for anything else the browser can make sense of
+  // (e.g. "16 September 2025", "Sep 16, 2025")
+  const nd = new Date(s);
+  if (!isNaN(nd) && nd.getFullYear() > 2015 && nd.getFullYear() < 2100) {
+    return new Date(nd.getFullYear(), nd.getMonth(), nd.getDate());
+  }
   return null;
 }
 
@@ -652,7 +661,8 @@ function processSARRows(rows) {
 // Rules:
 //   1. codeName must exist in SAR_MAP
 //   2. status must start with "Active" (case-insensitive)
-//   3. Actual Join Date must be >= 3 months before today
+//   3. Tenure — the earliest last-membership-date among the SA's assigned
+//      students — must be >= 3 months before today
 // =====================================================================
 function computeSAREligibility() {
   SA_ELIGIBILITY = {};
@@ -663,17 +673,29 @@ function computeSAREligibility() {
 
   const threeMonthsAgo = new Date(TODAY.getFullYear(), TODAY.getMonth() - 3, TODAY.getDate());
 
+  // Tenure start per SA = earliest last_mem_date across all of their assigned
+  // students (regardless of current retention status).
+  const tenureStartByName = {};
+  ALL.forEach(d => {
+    if (!d.sa_ret) return;
+    const dt = parseDateFull(d.last_mem_date);
+    if (!dt || isNaN(dt)) return;
+    if (!tenureStartByName[d.sa_ret] || dt < tenureStartByName[d.sa_ret]) {
+      tenureStartByName[d.sa_ret] = dt;
+    }
+  });
+
   saNames.forEach(name => {
     const key = name.toLowerCase().trim();
     const dict = SAR_MAP[key];
     const mapped  = !!dict;
     const rawStatus = dict ? dict.status : '';
     const active  = mapped && rawStatus.toLowerCase().startsWith('active');
-    const joinDate = dict ? parseDateFull(dict.joinDate) : null;
-    // 3-month rule: joinDate must exist AND be at least 3 months before today
-    const eligible = active && joinDate !== null && joinDate <= threeMonthsAgo;
+    const tenureStart = tenureStartByName[name] || null;
+    // 3-month rule: tenure start must exist AND be at least 3 months before today
+    const eligible = active && tenureStart !== null && tenureStart <= threeMonthsAgo;
 
-    SA_ELIGIBILITY[name] = { mapped, active, eligible, joinDate, rawStatus };
+    SA_ELIGIBILITY[name] = { mapped, active, eligible, tenureStart, rawStatus };
   });
 
   console.log('SA Eligibility computed:', SA_ELIGIBILITY);
@@ -789,22 +811,22 @@ function populateStudentFilters() {
 }
 
 function populateAllSAMonths() {
-  const months = getAllMonths(ALL);
-  const el = document.getElementById('saMonth');
-  if (!el) return;
-  const cur = el.value;
-  el.innerHTML = `<option value="">Semua Bulan</option>` +
-    months.map(m => `<option value="${m}">${m}</option>`).join('');
-  if (months.includes(cur)) el.value = cur;
+  populateMonthSelect('saMonth', getAllMonths(ALL));
 }
 
 // Build sorted unique month labels from the data
 function getAllMonths(data) {
   const seen = new Set();
+  let unparsed = 0, sampleRaw = null;
   data.forEach(d => {
+    if (!d.last_mem_date) return;
     const mo = extractMonthLabel(d.last_mem_date);
     if (mo) seen.add(mo);
+    else { unparsed++; if (sampleRaw === null) sampleRaw = d.last_mem_date; }
   });
+  if (unparsed > 0 && seen.size === 0) {
+    console.warn(`getAllMonths: could not parse any of ${unparsed} last_mem_date value(s). Sample raw value: "${sampleRaw}"`);
+  }
   return [...seen].sort((a, b) => monthLabelToSortKey(a) - monthLabelToSortKey(b));
 }
 
@@ -1299,7 +1321,7 @@ function renderSA() {
 
   // Note banner
   document.getElementById('saNote').innerHTML = dictLoaded
-    ? `<div class="sa-note">📋 Hanya SA berstatus <strong>Active</strong> di SAR Dictionary dan sudah bekerja ≥ 3 bulan sejak <em>Actual Join Date</em> yang muncul di leaderboard. <strong>${hiddenCount} SA</strong> disembunyikan (resign / belum 3 bulan / tidak terdaftar).</div>`
+    ? `<div class="sa-note">📋 Hanya SA berstatus <strong>Active</strong> di SAR Dictionary dan sudah bekerja ≥ 3 bulan (dihitung dari <em>last membership date</em> siswa pertama yang ditugaskan ke SA tsb) yang muncul di leaderboard. <strong>${hiddenCount} SA</strong> disembunyikan (resign / belum 3 bulan / tidak terdaftar).</div>`
     : `<div class="sa-note">⚠️ SAR Dictionary belum berhasil dimuat — menampilkan semua SA tanpa filter eligibility.</div>`;
 
   const tierDefs = [
@@ -1362,8 +1384,8 @@ function openSADetail(name) {
         e.mapped
           ? (e.active ? `<span class="pill pill-green">Active</span>` : `<span class="pill pill-red">${e.rawStatus||'Tidak Aktif'}</span>`)
           : `<span class="pill pill-gray">Tidak terdaftar di SAR Dictionary</span>`,
-        e.joinDate
-          ? `<span class="pill pill-blue">Join: ${e.joinDate.toLocaleDateString('id-ID')}</span>`
+        e.tenureStart
+          ? `<span class="pill pill-blue">Aktif sejak: ${e.tenureStart.toLocaleDateString('id-ID')}</span>`
           : '',
         e.eligible
           ? `<span class="pill pill-green">✓ Eligible Leaderboard</span>`
