@@ -338,6 +338,8 @@ td.muted{color:var(--text2);}
             <th onclick="sortTable('pkg_type')">Paket ↕</th>
             <th>SA Retention</th>
             <th>Churn Reason</th>
+            <th onclick="sortTable('last_mem_date')">Last Membership ↕</th>
+            <th>Notes</th>
           </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -869,7 +871,7 @@ function processMainRows(rows) {
       exp_payment:  row[20]?.trim() || '',
       ret_status:   col(row,'retention status',21),
       churn_reason: col(row,'churn reason',23) || row[23]?.trim() || '',
-      notes:        col(row,'response notes',24) || row[24]?.trim() || '',
+      notes:        row[24]?.trim() || '',
       fp_date:      col(row,'fp date (mm/dd/yyyy)',34) || row[34]?.trim() || '',
       fp_amount:    col(row,'fp amount',35) || row[35]?.trim() || '',
       expiry_date:  col(row,'expiry date',48) || row[48]?.trim() || '',
@@ -1486,6 +1488,11 @@ function renderTable() {
     (!q||(d.name.toLowerCase().includes(q)||d.sid.toLowerCase().includes(q)))
   );
   rows.sort((a,b) => {
+    if (sortKey === 'last_mem_date') {
+      const ad = parseDateFull(a.last_mem_date), bd = parseDateFull(b.last_mem_date);
+      const av = ad ? ad.getTime() : -Infinity, bv = bd ? bd.getTime() : -Infinity;
+      return av<bv ? -sortDir : av>bv ? sortDir : 0;
+    }
     const av=a[sortKey]||'', bv=b[sortKey]||'';
     return av<bv ? -sortDir : av>bv ? sortDir : 0;
   });
@@ -1499,6 +1506,8 @@ function renderTable() {
   document.getElementById('tableBody').innerHTML = pageRows.map(d => {
     const i = ALL.indexOf(d);
     const cls = d.class1 ? d.class1.split('|').slice(2,4).join(' ').trim() : '—';
+    const lastMemDt = parseDateFull(d.last_mem_date);
+    const lastMemDisplay = lastMemDt ? lastMemDt.toLocaleDateString('id-ID') : (d.last_mem_date || '—');
     return `<tr onclick="openModal(${i})">
       <td><strong>${d.branch}</strong></td>
       <td>${d.name}</td>
@@ -1508,6 +1517,8 @@ function renderTable() {
       <td class="muted">${d.pkg_type||'—'}</td>
       <td class="muted">${d.sa_ret||'—'}</td>
       <td>${churnPill(d.churn_reason)}</td>
+      <td class="muted">${lastMemDisplay}</td>
+      <td class="muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${d.notes||''}">${d.notes||'—'}</td>
     </tr>`;
   }).join('');
 
