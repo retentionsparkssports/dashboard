@@ -365,6 +365,10 @@ td.muted{color:var(--text2);}
         <option value="">Semua Bulan</option>
       </select>
       <div class="ms-wrap" id="saBranchMS"></div>
+      <div class="toggle-wrap">
+        <span>Hanya SAR Aktif</span>
+        <div class="toggle-switch on" id="saActiveToggle" onclick="toggleSAActiveOnly()"></div>
+      </div>
     </div>
   </div>
   <div id="sarDebug" class="sar-debug" style="display:none;"></div>
@@ -405,6 +409,7 @@ td.muted{color:var(--text2);}
       <select id="cMonth" onchange="renderCenterPerf()">
         <option value="">Semua Bulan</option>
       </select>
+      <div class="ms-wrap" id="cBranchMS"></div>
     </div>
   </div>
   <div id="centerNote" class="sa-note"></div>
@@ -472,7 +477,8 @@ const SAR_PUB_CSV = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/pub?
 // STATE
 // =====================================================================
 let ALL = [];          // all retention rows
-let filtered = [];     // after dashboard filters
+let filtered = [];     // after dashboard filters (incl. month)
+let filteredNoMonth = []; // after dashboard filters, EXCLUDING month — used by the cohort/MoM section
 let sortKey  = 'name';
 let sortDir  = 1;
 let currentPage = 1;
@@ -483,6 +489,10 @@ let SAR_MAP  = {};           // codeName (lowercase) -> {codeName, status, joinD
 let SA_ELIGIBILITY = {};     // codeName -> {active, eligible, tenureStart, rawStatus}
 let sarLoaded = false;
 let showOnlyActiveSA = true;
+// "Hanya SAR Aktif" toggle on the SA Performance page — same UI pattern as
+// the dashboard's toggle, but controls whether the tier/leaderboard views
+// on that page show only eligible SAs (Active + tenured) or every SA.
+let showOnlySAEligible = true;
 
 // track parallel load
 let mainLoaded = false;
@@ -687,18 +697,26 @@ function tryRender() {
 
 // "Filter by SAR" dropdown(s) — one entry per distinct SA name (normalized,
 // merging spelling variants), sorted alphabetically by display name. Used
-// on both the Dashboard (#fSA) and Students (#sSA) pages.
-function populateSAFilter(id = 'fSA') {
+// on both the Dashboard (#fSA) and Students (#sSA) pages. When branchSet is
+// given (non-empty), only SARs with at least one student in those branches
+// are listed — keeps the SAR filter in sync with the branch filter instead
+// of always showing every SAR regardless of which branch is selected.
+function populateSAFilter(id = 'fSA', branchSet = null) {
   const el = document.getElementById(id);
   if (!el) return;
   const cur = el.value;
-  const keys = [...new Set(ALL.map(d => d.sa_ret).filter(Boolean).map(normName))];
+  const pool = (branchSet && branchSet.size) ? ALL.filter(d => branchSet.has(d.branch)) : ALL;
+  const keys = [...new Set(pool.map(d => d.sa_ret).filter(Boolean).map(normName))];
   const options = keys.map(key => ({
     key, label: SA_ELIGIBILITY[key]?.displayName || key
   })).sort((a,b) => a.label.localeCompare(b.label));
   el.innerHTML = `<option value="">Semua SAR</option>` +
     options.map(o => `<option value="${o.key}">${o.label}</option>`).join('');
+  // Restore the previous selection only if it's still valid for this branch
+  // scope; otherwise fall back to "Semua SAR" instead of silently keeping a
+  // value that's no longer in the list.
   if (options.some(o => o.key === cur)) el.value = cur;
+  else el.value = '';
 }
 
 // =====================================================================
@@ -846,6 +864,13 @@ function processMainRows(rows) {
     const idx = hIdx[name.toLowerCase()];
     return (idx !== undefined ? row[idx] : row[fallback])?.trim() || '';
   };
+  const colAny = (row, names, fallback) => {
+    for (const n of names) {
+      const idx = hIdx[n.toLowerCase()];
+      if (idx !== undefined) { const v = row[idx]?.trim(); if (v) return v; }
+    }
+    return row[fallback]?.trim() || '';
+  };
 
   for (const row of rows) {
     if (row.length < 10) continue;
@@ -856,6 +881,11 @@ function processMainRows(rows) {
     if (['Student ID','Appscript','a',''].includes(sid)) continue;
     if (['Student Name','Automated',''].includes(name)) continue;
     const ag = row[7]?.trim() || '';
+    // The "Paket" cell occasionally contains a stray date instead of a
+    // package name (sheet artifact) — treat those as blank rather than
+    // showing/graphing a date as if it were a package type.
+    let pkgRaw = colAny(row, ['paket','package','jenis paket','package type'], 17);
+    if (pkgRaw && parseDateFull(pkgRaw)) pkgRaw = '';
     ALL.push({
       branch, sid, name,
       parent_phone: row[3]?.trim() || '',
@@ -865,7 +895,7 @@ function processMainRows(rows) {
       last_mem_date:row[11]?.trim() || '',
       sa_acq:       row[12]?.trim() || '',
       sa_ret:       row[13]?.trim() || '',
-      pkg_type:     row[17]?.trim() || '',
+      pkg_type:     pkgRaw,
       age_exp:      col(row,'age exp date',18) || row[18]?.trim() || '',
       ret_cycle:    row[22]?.trim() || '',
       exp_payment:  row[20]?.trim() || '',
@@ -901,6 +931,7 @@ function processMainRows(rows) {
   setLoading(80);
   initFilters();
   filtered = [...ALL];
+  filteredNoMonth = [...ALL];
   mainLoaded = true;
   setLoading(100);
 
@@ -936,7 +967,7 @@ function initFilters() {
   pop('fRetStatus', statuses,'Status');
   pop('fPkg',       pkgs,    'Paket');
 
-  createMultiSelect('fBranchMS', branches, () => applyFilters());
+  createMultiSelect('fBranchMS', branches, (sel) => { populateSAFilter('fSA', sel); applyFilters(); });
 }
 
 function populateStudentFilters() {
@@ -954,8 +985,9 @@ function populateStudentFilters() {
   pop('sStatus', statuses, 'Status');
   pop('sAge',    ages,     'Usia');
 
-  createMultiSelect('sBranchMS',  branches, () => { currentPage=1; renderTable(); });
+  createMultiSelect('sBranchMS',  branches, (sel) => { populateSAFilter('sSA', sel); currentPage=1; renderTable(); });
   createMultiSelect('saBranchMS', branches, () => renderSA());
+  createMultiSelect('cBranchMS',  branches, () => renderCenterPerf());
 }
 
 function populateAllSAMonths() {
@@ -1017,15 +1049,22 @@ function createMultiSelect(containerId, options, onChange) {
   }
 
   function render() {
+    // Re-rendering (e.g. after "Pilih Semua" / "Reset") replaces the panel
+    // element entirely — preserve whether it was open so those buttons
+    // don't unexpectedly close the popover on the user.
+    const prevPanel = document.getElementById(`${containerId}_panel`);
+    const wasOpen = !!prevPanel && prevPanel.style.display !== 'none';
+
     container.innerHTML = `
       <button type="button" class="ms-btn" id="${containerId}_btn">${label()}</button>
-      <div class="ms-panel" id="${containerId}_panel" style="display:none;">
+      <div class="ms-panel" id="${containerId}_panel" style="display:${wasOpen?'block':'none'};">
         ${options.map(o => `
           <label class="ms-opt">
             <input type="checkbox" value="${o}" ${selected.has(o)?'checked':''}>
             <span>${o}</span>
           </label>`).join('')}
         <div class="ms-actions">
+          <button type="button" onclick="multiSelects['${containerId}'].selectAll()">Pilih Semua</button>
           <button type="button" onclick="multiSelects['${containerId}'].clear()">Reset</button>
           <button type="button" onclick="multiSelects['${containerId}'].close()">Selesai ✓</button>
         </div>
@@ -1054,6 +1093,7 @@ function createMultiSelect(containerId, options, onChange) {
   const api = {
     getSelected: () => selected,
     clear: () => { selected.clear(); render(); onChange(selected); },
+    selectAll: () => { selected = new Set(options); render(); onChange(selected); },
     close: () => {
       const p = document.getElementById(`${containerId}_panel`);
       if (p) p.style.display = 'none';
@@ -1076,6 +1116,12 @@ function toggleActiveSA() {
   updateDashboard();
 }
 
+function toggleSAActiveOnly() {
+  showOnlySAEligible = !showOnlySAEligible;
+  document.getElementById('saActiveToggle').classList.toggle('on', showOnlySAEligible);
+  renderSA();
+}
+
 // =====================================================================
 // APPLY / RESET FILTERS
 // =====================================================================
@@ -1087,13 +1133,14 @@ function applyFilters() {
   const mo  = document.getElementById('fMonth').value;
   const sa  = document.getElementById('fSA').value;
 
-  filtered = filterByMonth(ALL, mo).filter(d =>
+  filteredNoMonth = ALL.filter(d =>
     (!bSet.size || bSet.has(d.branch)) &&
     (!a || d.age_group === a) &&
     (!s || d.ret_status === s) &&
     (!p || d.pkg_type === p) &&
     (!sa || normName(d.sa_ret) === sa)
   );
+  filtered = filterByMonth(filteredNoMonth, mo);
   updateDashboard();
 }
 
@@ -1101,6 +1148,7 @@ function resetFilters() {
   ['fAgeGroup','fRetStatus','fPkg','fMonth','fSA'].forEach(id => document.getElementById(id).value = '');
   if (multiSelects['fBranchMS']) multiSelects['fBranchMS'].clear();
   filtered = [...ALL];
+  filteredNoMonth = [...ALL];
   updateDashboard();
 }
 
@@ -1130,7 +1178,11 @@ function updateDashboard() {
   renderBranchChart(data);
   renderChurnBars(data);
   renderPkgBars(data);
-  renderCohortSection(data);
+  // Cohort/MoM section computes its own per-month (M-3..M+3) slices, so it
+  // needs the branch/age/status/pkg/SA/active-SA filters applied but NOT
+  // the month filter (filteredNoMonth) — otherwise it always fell back to
+  // the unfiltered ALL and ignored branch selection entirely.
+  renderCohortSection(filteredNoMonth.filter(activeSAFilter));
 }
 
 // =====================================================================
@@ -1148,10 +1200,10 @@ const PAID_STATUSES = ['paid retention', 'paid - cicil'];
 const isPaid = d => PAID_STATUSES.includes((d.ret_status || '').trim().toLowerCase());
 
 // Matches the exclusion criteria baked into the sheet's Total COUNTIFS:
-// students who moved centers or dropped for non-payment aren't part of
-// the retention-tracked population, nor are older age brackets that have
-// aged out of the program.
-const EXCLUDED_STATUSES = ['move to other center', 'drop - unpaid installment'];
+// students who moved centers, dropped for non-payment, or were dropped as
+// unretainable aren't part of the retention-tracked population, nor are
+// older age brackets that have aged out of the program.
+const EXCLUDED_STATUSES = ['move to other center', 'drop - unpaid installment', 'drop - can not retain', 'drop - cannot retain'];
 const EXCLUDED_AGE_SUBSTRINGS = ['7 tahun', '8 tahun', '9 tahun', '10 tahun'];
 const isRetentionEligible = d => {
   if (EXCLUDED_STATUSES.includes((d.ret_status || '').trim().toLowerCase())) return false;
@@ -1373,8 +1425,8 @@ function renderCohortSection(data) {
   // eligibility exclusions); Total uses the sheet's Total formula (which
   // does apply them) — the two formulas use different criteria in the
   // source sheet, so they're computed from different populations here too.
-  const counts  = months.map(mo => ALL.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length);
-  const totals  = months.map(mo => ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo).length);
+  const counts  = months.map(mo => data.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length);
+  const totals  = months.map(mo => data.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo).length);
   const targets = totals.map((t,i) => i >= 3 ? Math.round(t*0.35) : null);
 
   const barColors = ['#93c5fd','#60a5fa','#3b82f6','#0d9e5c','#fcd34d','#f59e0b','#d97706'];
@@ -1399,8 +1451,8 @@ function renderCohortSection(data) {
     }
   });
 
-  const m0Total = ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===selectedMonth).length;
-  const m0Paid  = ALL.filter(d => extractMonthLabel(d.expiry_date)===selectedMonth && isPaid(d)).length;
+  const m0Total = data.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===selectedMonth).length;
+  const m0Paid  = data.filter(d => extractMonthLabel(d.expiry_date)===selectedMonth && isPaid(d)).length;
   document.getElementById('cohortStats').innerHTML = `
     <div style="text-align:center;padding:6px 14px;background:var(--surface2);border-radius:8px;">
       <div style="font-size:18px;font-weight:800;font-family:'DM Sans',sans-serif;">${m0Total}</div>
@@ -1423,8 +1475,8 @@ function renderCohortSection(data) {
   // Per-cohort mini cards
   const cards = offsets.map((o,i) => {
     const mo = months[i];
-    const t = ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo).length;
-    const p = ALL.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length;
+    const t = data.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo).length;
+    const p = data.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length;
     const pct = t ? Math.round(p/t*100) : 0;
     const pctColor = pct>=35?'var(--green)':pct>=20?'var(--amber)':'var(--red)';
     return `<div style="background:var(--surface2);border-radius:12px;padding:12px 14px;min-width:120px;flex:1;">
@@ -1592,7 +1644,7 @@ function renderSA() {
 
   // Apply eligibility filter, tracking *why* each excluded SA was excluded
   let notMapped = 0, notActive = 0, notTenured = 0;
-  const eligibleSA = dictLoaded
+  const eligibilityFiltered = dictLoaded
     ? allSA.filter(sa => {
         const e = SA_ELIGIBILITY[sa.key];
         if (!e || !e.mapped) { notMapped++;  return false; }
@@ -1602,12 +1654,18 @@ function renderSA() {
       })
     : allSA;
 
-  const hiddenCount = allSA.length - eligibleSA.length;
+  // "Hanya SAR Aktif" toggle — when off, show every SA regardless of
+  // Active/tenure status instead of the eligibility-filtered list.
+  const eligibleSA = showOnlySAEligible ? eligibilityFiltered : allSA;
+
+  const hiddenCount = allSA.length - eligibilityFiltered.length;
 
   // Note banner
-  document.getElementById('saNote').innerHTML = dictLoaded
-    ? `<div class="sa-note">📋 Hanya SA berstatus <strong>Active</strong> di SAR Dictionary dan sudah bekerja ≥ 3 bulan (dihitung dari <em>last membership date</em> siswa pertama yang ditugaskan ke SA tsb) yang muncul di leaderboard. <strong>${hiddenCount} SA</strong> disembunyikan — ${notMapped} tidak terdaftar di SAR Dictionary, ${notActive} berstatus tidak Active, ${notTenured} belum 3 bulan.</div>`
-    : `<div class="sa-note">⚠️ SAR Dictionary belum berhasil dimuat — menampilkan semua SA tanpa filter eligibility.</div>`;
+  document.getElementById('saNote').innerHTML = !dictLoaded
+    ? `<div class="sa-note">⚠️ SAR Dictionary belum berhasil dimuat — menampilkan semua SA tanpa filter eligibility.</div>`
+    : showOnlySAEligible
+      ? `<div class="sa-note">📋 Hanya SA berstatus <strong>Active</strong> di SAR Dictionary dan sudah bekerja ≥ 3 bulan (dihitung dari <em>last membership date</em> siswa pertama yang ditugaskan ke SA tsb) yang muncul di leaderboard. <strong>${hiddenCount} SA</strong> disembunyikan — ${notMapped} tidak terdaftar di SAR Dictionary, ${notActive} berstatus tidak Active, ${notTenured} belum 3 bulan. Matikan toggle "Hanya SAR Aktif" untuk melihat semua.</div>`
+      : `<div class="sa-note">👁️ Menampilkan <strong>semua SA</strong> (termasuk yang tidak aktif / belum 3 bulan). <strong>${hiddenCount}</strong> di antaranya tidak eligible untuk leaderboard resmi.</div>`;
 
   const tierDefs = [
     {cls:'tier-top',      icon:'🏆', title:'Top Performer',    badge:'RR ≥ 35%',   filter:sa=>sa.rate>=35},
@@ -1776,7 +1834,9 @@ document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); 
 function renderCenterPerf() {
   if (!ALL.length) return;
   const mo = document.getElementById('cMonth').value;
-  const base = filterByMonth(ALL, mo);
+  const branchSet = multiSelects['cBranchMS'] ? multiSelects['cBranchMS'].getSelected() : new Set();
+  let base = filterByMonth(ALL, mo);
+  if (branchSet.size) base = base.filter(d => branchSet.has(d.branch));
   const data = base.filter(isRetentionEligible);
   const paidData = base;
   centerLastData = data;
