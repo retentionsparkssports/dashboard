@@ -1231,10 +1231,15 @@ const PAID_STATUSES = ['paid retention', 'paid - cicil'];
 const isPaid = d => PAID_STATUSES.includes((d.ret_status || '').trim().toLowerCase());
 
 // Matches the exclusion criteria baked into the sheet's Total COUNTIFS:
-// students who moved centers, dropped for non-payment, or were dropped as
-// unretainable aren't part of the retention-tracked population, nor are
-// older age brackets that have aged out of the program.
-const EXCLUDED_STATUSES = ['move to other center', 'drop - unpaid installment', 'drop - can not retain', 'drop - cannot retain'];
+// students who moved centers or dropped for non-payment aren't part of
+// the retention-tracked population, nor are older age brackets that have
+// aged out of the program. "Drop - Can not retain" was tried as a third
+// exclusion but reverted — the source sheet's own Total formula does NOT
+// exclude it (confirmed via debugCenterCohort: it was the dominant excluded
+// status for branches whose count had drifted below the sheet's, e.g. BSD/
+// KGD/MRG for the Agustus 2026 cohort), so excluding it here diverged from
+// the sheet instead of matching it.
+const EXCLUDED_STATUSES = ['move to other center', 'drop - unpaid installment'];
 const EXCLUDED_AGE_SUBSTRINGS = ['7 tahun', '8 tahun', '9 tahun', '10 tahun'];
 const isRetentionEligible = d => {
   if (EXCLUDED_STATUSES.includes((d.ret_status || '').trim().toLowerCase())) return false;
