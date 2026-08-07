@@ -242,7 +242,7 @@ td.muted{color:var(--text2);}
       <select id="fAgeGroup" onchange="applyFilters()"><option value="">Semua Usia</option></select>
       <select id="fRetStatus" onchange="applyFilters()"><option value="">Semua Status</option></select>
       <select id="fPkg" onchange="applyFilters()"><option value="">Semua Paket</option></select>
-      <select id="fMonth" onchange="applyFilters()"><option value="">Semua Bulan</option></select>
+      <div class="ms-wrap" id="fMonthMS"></div>
       <select id="fSA" onchange="applyFilters()"><option value="">Semua SAR</option></select>
       <div class="fd"></div>
       <div class="toggle-wrap">
@@ -315,7 +315,7 @@ td.muted{color:var(--text2);}
     <div class="ms-wrap" id="sBranchMS"></div>
     <select id="sStatus" onchange="renderTable()"><option value="">Semua Status</option></select>
     <select id="sAge" onchange="renderTable()"><option value="">Semua Usia</option></select>
-    <select id="sMonth" onchange="renderTable()"><option value="">Semua Bulan</option></select>
+    <div class="ms-wrap" id="sMonthMS"></div>
     <select id="sSA" onchange="renderTable()"><option value="">Semua SAR</option></select>
     <div class="fd"></div>
     <div class="search-wrap">
@@ -361,9 +361,7 @@ td.muted{color:var(--text2);}
         <button class="top-tab active" id="saViewTiersBtn" onclick="setSAView('tiers')" style="padding:6px 14px;">Tiers</button>
         <button class="top-tab" id="saViewLeaderboardBtn" onclick="setSAView('leaderboard')" style="padding:6px 14px;">Leaderboard</button>
       </div>
-      <select id="saMonth" onchange="renderSA()">
-        <option value="">Semua Bulan</option>
-      </select>
+      <div class="ms-wrap" id="saMonthMS"></div>
       <div class="ms-wrap" id="saBranchMS"></div>
       <div class="toggle-wrap">
         <span>Hanya SAR Aktif</span>
@@ -406,9 +404,7 @@ td.muted{color:var(--text2);}
       <div class="ph-sub">Retention rate & status per branch</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <select id="cMonth" onchange="renderCenterPerf()">
-        <option value="">Semua Bulan</option>
-      </select>
+      <div class="ms-wrap" id="cMonthMS"></div>
       <div class="ms-wrap" id="cBranchMS"></div>
     </div>
   </div>
@@ -479,6 +475,9 @@ const SAR_PUB_CSV = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/pub?
 let ALL = [];          // all retention rows
 let filtered = [];     // after dashboard filters (incl. month)
 let filteredNoMonth = []; // after dashboard filters, EXCLUDING month — used by the cohort/MoM section
+// Rows dropped during parsing because their Branch column value doesn't
+// exactly match the fixed BRANCHES list — see debugBranchMismatches().
+let REJECTED_BRANCH_ROWS = [];
 let sortKey  = 'name';
 let sortDir  = 1;
 let currentPage = 1;
@@ -622,13 +621,6 @@ function shiftMonth(monthLabel, delta) {
   return `${MONTH_NAMES[mo]} ${yr}`;
 }
 
-function getLast3MonthLabels() {
-  return [0, 1, 2].map(i => {
-    const d = new Date(TODAY.getFullYear(), TODAY.getMonth() - i, 1);
-    return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
-  });
-}
-
 // =====================================================================
 // LOADING BAR
 // =====================================================================
@@ -649,27 +641,64 @@ function loadAll() {
   loadSARSheet();
 }
 
-function loadMainSheet() {
-  Papa.parse(MAIN_CSV, {
-    download: true, skipEmptyLines: true,
-    complete(res) { processMainRows(res.data); },
-    error()       { showUploadFallback('Tidak bisa memuat dari Google Sheets. Coba upload manual.'); }
+// Google Sheets' CSV export can hang indefinitely instead of erroring out
+// (e.g. when link-sharing has been turned off) — Papa.parse has no built-in
+// timeout, so without this a broken share setting freezes the app forever
+// on "Memuat data..." with no visible error. This races the fetch against a
+// timer and treats a timeout the same as a network error.
+const LOAD_TIMEOUT_MS = 25000;
+function withTimeout(startFn, onSettle) {
+  let settled = false;
+  const timeoutId = setTimeout(() => {
+    if (settled) return;
+    settled = true;
+    onSettle({ timedOut: true });
+  }, LOAD_TIMEOUT_MS);
+  startFn((result) => {
+    if (settled) return; // timeout already fired — ignore the late response
+    settled = true;
+    clearTimeout(timeoutId);
+    onSettle({ timedOut: false, ...result });
   });
+}
+
+function loadMainSheet() {
+  withTimeout(
+    done => Papa.parse(MAIN_CSV, {
+      download: true, skipEmptyLines: true,
+      complete(res) { done({ ok: true, res }); },
+      error()       { done({ ok: false }); }
+    }),
+    outcome => {
+      if (outcome.timedOut) {
+        console.warn(`Main sheet fetch timed out after ${LOAD_TIMEOUT_MS/1000}s — the sheet may no longer be shared as "Anyone with the link."`);
+        showUploadFallback('Google Sheets tidak merespons (timeout). Cek pengaturan share sheet, atau upload manual.');
+      } else if (!outcome.ok) {
+        showUploadFallback('Tidak bisa memuat dari Google Sheets. Coba upload manual.');
+      } else {
+        processMainRows(outcome.res.data);
+      }
+    }
+  );
 }
 
 // Try multiple URL variants for the SAR sheet
 function loadSARSheet() {
   function tryURL(url, onFail) {
-    Papa.parse(url, {
-      download: true, skipEmptyLines: true,
-      complete(res) {
-        if (res.data.length < 2) { onFail(); return; }
-        processSARRows(res.data);
+    withTimeout(
+      done => Papa.parse(url, {
+        download: true, skipEmptyLines: true,
+        complete(res) { done({ ok: true, res }); },
+        error()       { done({ ok: false }); }
+      }),
+      outcome => {
+        if (outcome.timedOut) console.warn(`SAR sheet fetch timed out after ${LOAD_TIMEOUT_MS/1000}s for URL: ${url}`);
+        if (outcome.timedOut || !outcome.ok || outcome.res.data.length < 2) { onFail(); return; }
+        processSARRows(outcome.res.data);
         sarLoaded = true;
         tryRender();
-      },
-      error() { onFail(); }
-    });
+      }
+    );
   }
   tryURL(SAR_CSV, () => {
     tryURL(SAR_CSV_ALT, () => {
@@ -689,8 +718,8 @@ function tryRender() {
     populateSAFilter('sSA');
     updateDashboard();
     renderSA();
-    populateAllSAMonths(); // refresh SA month dropdown with real data
-    populateMonthSelect('cMonth', getAllMonths(ALL));
+    populateAllSAMonths(); // refresh SA month filter with real data
+    createMonthMultiSelect('cMonthMS', getAllMonths(ALL), () => renderCenterPerf());
     if (document.getElementById('page-center').classList.contains('active')) renderCenterPerf();
   }
 }
@@ -837,6 +866,7 @@ function computeSAREligibility() {
 function processMainRows(rows) {
   setLoading(60);
   ALL = [];
+  REJECTED_BRANCH_ROWS = [];
 
   // Find header row
   let hIdx = {};
@@ -877,7 +907,16 @@ function processMainRows(rows) {
     const branch = row[0]?.trim();
     const sid    = row[1]?.trim();
     const name   = row[2]?.trim();
-    if (!BRANCHES.includes(branch)) continue;
+    if (!BRANCHES.includes(branch)) {
+      // Track rows dropped for an unrecognized Branch value (typo, stray
+      // suffix, alternate spelling) instead of silently discarding them —
+      // see debugBranchMismatches(). Excludes the header/junk rows the
+      // next two checks below would also reject.
+      if (branch && !['Student ID','Appscript','a',''].includes(sid) && !['Student Name','Automated',''].includes(name)) {
+        REJECTED_BRANCH_ROWS.push({ branch, sid, name, expiry_date: col(row,'expiry date',48) || row[48]?.trim() || '' });
+      }
+      continue;
+    }
     if (['Student ID','Appscript','a',''].includes(sid)) continue;
     if (['Student Name','Automated',''].includes(name)) continue;
     const ag = row[7]?.trim() || '';
@@ -952,7 +991,7 @@ function processMainRows(rows) {
 // =====================================================================
 function initFilters() {
   const months   = getAllMonths(ALL);
-  populateMonthSelect('fMonth', months);
+  createMonthMultiSelect('fMonthMS', months, () => applyFilters());
 
   const branches = [...new Set(ALL.map(d=>d.branch))].sort();
   const ages     = [...new Set(ALL.map(d=>d.age_group).filter(Boolean))].sort();
@@ -972,7 +1011,7 @@ function initFilters() {
 
 function populateStudentFilters() {
   const months   = getAllMonths(ALL);
-  populateMonthSelect('sMonth', months);
+  createMonthMultiSelect('sMonthMS', months, () => { currentPage=1; renderTable(); });
 
   const branches = [...new Set(ALL.map(d=>d.branch))].sort();
   const ages     = [...new Set(ALL.map(d=>d.age_group).filter(Boolean))].sort();
@@ -991,7 +1030,7 @@ function populateStudentFilters() {
 }
 
 function populateAllSAMonths() {
-  populateMonthSelect('saMonth', getAllMonths(ALL));
+  createMonthMultiSelect('saMonthMS', getAllMonths(ALL), () => renderSA());
 }
 
 // Build sorted unique month labels from the data
@@ -1010,42 +1049,33 @@ function getAllMonths(data) {
   return [...seen].sort((a, b) => monthLabelToSortKey(a) - monthLabelToSortKey(b));
 }
 
-// Populate a <select> with all months + "Last 3 months" option
-// *** FIX: each individual month is now a separate <option> ***
-function populateMonthSelect(id, months) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const cur = el.value;
-  el.innerHTML =
-    `<option value="">Semua Bulan</option>` +
-    `<option value="LAST3">🕒 3 Bulan Terakhir</option>` +
-    months.map(m => `<option value="${m}">${m}</option>`).join('');
-  // Restore previous selection if still valid
-  if (cur === 'LAST3' || months.includes(cur)) el.value = cur;
+// Month filter — a multi-select (same widget as the branch filter) so users
+// can pick any combination of specific months instead of a single value.
+// An empty selection means "Semua Bulan" (no month filter).
+function createMonthMultiSelect(containerId, months, onChange) {
+  return createMultiSelect(containerId, months, onChange, { allLabel: 'Semua Bulan', unitLabel: 'Bulan' });
 }
 
-// Filter an array of records by the selected month value
-function filterByMonth(data, monthVal) {
-  if (!monthVal) return data;
-  if (monthVal === 'LAST3') {
-    const set = new Set(getLast3MonthLabels());
-    return data.filter(d => set.has(extractMonthLabel(d.expiry_date)));
-  }
-  return data.filter(d => extractMonthLabel(d.expiry_date) === monthVal);
+// Filter an array of records by a Set of selected month labels. An empty
+// (or missing) set means no month filter — return everything.
+function filterByMonth(data, monthSet) {
+  if (!monthSet || !monthSet.size) return data;
+  return data.filter(d => monthSet.has(extractMonthLabel(d.expiry_date)));
 }
 
 // =====================================================================
 // MULTI-SELECT WIDGET
 // =====================================================================
-function createMultiSelect(containerId, options, onChange) {
+function createMultiSelect(containerId, options, onChange, labelOpts = {}) {
   const container = document.getElementById(containerId);
   if (!container) return null;
+  const { allLabel = 'Semua Branch', unitLabel = 'Branch' } = labelOpts;
   let selected = new Set();
 
   function label() {
-    if (selected.size === 0) return 'Semua Branch';
+    if (selected.size === 0) return allLabel;
     if (selected.size === 1) return [...selected][0];
-    return `${selected.size} Branch dipilih`;
+    return `${selected.size} ${unitLabel} dipilih`;
   }
 
   function render() {
@@ -1130,7 +1160,7 @@ function applyFilters() {
   const a   = document.getElementById('fAgeGroup').value;
   const s   = document.getElementById('fRetStatus').value;
   const p   = document.getElementById('fPkg').value;
-  const mo  = document.getElementById('fMonth').value;
+  const mo  = multiSelects['fMonthMS'] ? multiSelects['fMonthMS'].getSelected() : new Set();
   const sa  = document.getElementById('fSA').value;
 
   filteredNoMonth = ALL.filter(d =>
@@ -1145,8 +1175,9 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  ['fAgeGroup','fRetStatus','fPkg','fMonth','fSA'].forEach(id => document.getElementById(id).value = '');
+  ['fAgeGroup','fRetStatus','fPkg','fSA'].forEach(id => document.getElementById(id).value = '');
   if (multiSelects['fBranchMS']) multiSelects['fBranchMS'].clear();
+  if (multiSelects['fMonthMS']) multiSelects['fMonthMS'].clear();
   filtered = [...ALL];
   filteredNoMonth = [...ALL];
   updateDashboard();
@@ -1240,6 +1271,46 @@ function debugPaidMismatches(monthLabel) {
   });
 }
 
+// Console debug helper — call debugBranchMismatches() to see rows that were
+// dropped during parsing because their Branch column value didn't exactly
+// match the fixed BRANCHES list (typo, stray suffix, alternate spelling,
+// e.g. "BSD " or "BSD2" instead of "BSD"). Those students silently vanish
+// from every page — this is the #1 suspect when a specific branch's count
+// on the Per Center page comes up lower than the source sheet's own total.
+function debugBranchMismatches() {
+  if (!REJECTED_BRANCH_ROWS.length) {
+    console.log('debugBranchMismatches: no rows were dropped for an unrecognized branch code — branch codes look clean.');
+    return;
+  }
+  const counts = {};
+  REJECTED_BRANCH_ROWS.forEach(r => { counts[r.branch] = (counts[r.branch] || 0) + 1; });
+  console.log(`debugBranchMismatches: ${REJECTED_BRANCH_ROWS.length} row(s) dropped — their Branch value isn't in BRANCHES (${BRANCHES.join(', ')}):`);
+  Object.entries(counts).sort((a, b) => b[1] - a[1]).forEach(([b, c]) => {
+    const samples = REJECTED_BRANCH_ROWS.filter(r => r.branch === b).slice(0, 5).map(r => r.name || r.sid).join(', ');
+    console.log(`  "${b}" (${c} row[s]) — sample: ${samples}${c > 5 ? ', ...' : ''}`);
+  });
+}
+
+// Console debug helper — call debugCenterCohort('Agustus 2026') to see,
+// per branch, how many rows for that expiry-cohort month are eligible
+// ("Total siswa") vs excluded, and whether the exclusion is a status
+// (Move to other center / Drop - ...) or an aged-out age bracket (7-10
+// Tahun). Use this to check whether a branch's lower-than-expected count
+// is an age/status skew rather than a parsing issue (see
+// debugBranchMismatches for the other main suspect).
+function debugCenterCohort(monthLabel) {
+  const branches = [...new Set(ALL.map(d => d.branch))].sort();
+  console.log(`debugCenterCohort("${monthLabel}") — per-branch breakdown (raw = all rows in this cohort month regardless of eligibility):`);
+  branches.forEach(b => {
+    const rows = ALL.filter(d => d.branch === b && extractMonthLabel(d.expiry_date) === monthLabel);
+    if (!rows.length) return;
+    const eligible = rows.filter(isRetentionEligible);
+    const excludedByStatus = rows.filter(d => EXCLUDED_STATUSES.includes((d.ret_status || '').trim().toLowerCase()));
+    const excludedByAge = rows.filter(d => !EXCLUDED_STATUSES.includes((d.ret_status || '').trim().toLowerCase()) && !isRetentionEligible(d));
+    console.log(`  ${b}: raw=${rows.length}, eligible(Total siswa)=${eligible.length}, excluded-by-status=${excludedByStatus.length}, excluded-by-age=${excludedByAge.length}`);
+  });
+}
+
 function renderMetrics(data, paidData) {
   paidData = paidData || data;
   const total   = data.length;
@@ -1248,9 +1319,12 @@ function renderMetrics(data, paidData) {
   const unsure  = data.filter(d => ['Still unsure','Asked - still no response','Not yet been asked','Not yet asked'].includes(d.ret_status)).length;
   const retRate = total ? Math.round(paid/total*100) : 0;
 
-  const selectedMonth = document.getElementById('fMonth').value;
+  // The M0/M-1/M-2 breakdown needs a single anchor month, so it only shows
+  // when exactly one month is selected in the (now multi-select) month filter.
+  const selMonths = multiSelects['fMonthMS'] ? multiSelects['fMonthMS'].getSelected() : new Set();
+  const selectedMonth = selMonths.size === 1 ? [...selMonths][0] : null;
   let subHtml = `${retRate}% retention rate`;
-  if (selectedMonth && selectedMonth !== 'LAST3' && paid > 0) {
+  if (selectedMonth && paid > 0) {
     const m0  = paidData.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===selectedMonth).length;
     const m1  = paidData.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===shiftMonth(selectedMonth,-1)).length;
     const m2  = paidData.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===shiftMonth(selectedMonth,-2)).length;
@@ -1405,12 +1479,15 @@ function renderPkgBars(data)   { renderBars('pkgBars',   counter(data,'pkg_type'
 // COHORT CHART (only when a specific month is selected)
 // =====================================================================
 function renderCohortSection(data) {
-  const selectedMonth = document.getElementById('fMonth').value;
+  // Needs one specific anchor month to build the M-3..M+3 window around —
+  // shown only when exactly one month is selected (not zero, not several).
+  const selMonths = multiSelects['fMonthMS'] ? multiSelects['fMonthMS'].getSelected() : new Set();
   const section = document.getElementById('cohortSection');
-  if (!selectedMonth || selectedMonth === 'LAST3') {
+  if (selMonths.size !== 1) {
     section.style.display = 'none';
     return;
   }
+  const selectedMonth = [...selMonths][0];
   section.style.display = 'block';
   document.getElementById('cohortLabel').textContent = selectedMonth;
 
@@ -1514,8 +1591,9 @@ function churnPill(c) {
 }
 
 function resetStudentFilters() {
-  ['sStatus','sAge','sMonth','sSA'].forEach(id => document.getElementById(id).value='');
+  ['sStatus','sAge','sSA'].forEach(id => document.getElementById(id).value='');
   if (multiSelects['sBranchMS']) multiSelects['sBranchMS'].clear();
+  if (multiSelects['sMonthMS']) multiSelects['sMonthMS'].clear();
   document.getElementById('sSearch').value = '';
   renderTable();
 }
@@ -1530,7 +1608,7 @@ function renderTable() {
   const bSet = multiSelects['sBranchMS'] ? multiSelects['sBranchMS'].getSelected() : new Set();
   const s  = document.getElementById('sStatus').value;
   const a  = document.getElementById('sAge').value;
-  const mo = document.getElementById('sMonth').value;
+  const mo = multiSelects['sMonthMS'] ? multiSelects['sMonthMS'].getSelected() : new Set();
   const sa = document.getElementById('sSA').value;
   const q  = document.getElementById('sSearch').value.toLowerCase();
 
@@ -1602,7 +1680,7 @@ function goPage(p) { currentPage=p; renderTable(); window.scrollTo(0, document.g
 function renderSA() {
   if (!ALL.length) return;
   const branchSet = multiSelects['saBranchMS'] ? multiSelects['saBranchMS'].getSelected() : new Set();
-  const mo = document.getElementById('saMonth').value;
+  const mo = multiSelects['saMonthMS'] ? multiSelects['saMonthMS'].getSelected() : new Set();
   let base = filterByMonth(ALL, mo);
   if (branchSet.size) base = base.filter(d => branchSet.has(d.branch));
   // Total/Churned/Unsure use the sheet's Total formula's population
@@ -1833,7 +1911,7 @@ document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); 
 // (Total uses isRetentionEligible; Paid doesn't) — see updateDashboard.
 function renderCenterPerf() {
   if (!ALL.length) return;
-  const mo = document.getElementById('cMonth').value;
+  const mo = multiSelects['cMonthMS'] ? multiSelects['cMonthMS'].getSelected() : new Set();
   const branchSet = multiSelects['cBranchMS'] ? multiSelects['cBranchMS'].getSelected() : new Set();
   let base = filterByMonth(ALL, mo);
   if (branchSet.size) base = base.filter(d => branchSet.has(d.branch));
