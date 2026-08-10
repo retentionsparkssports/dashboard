@@ -2163,13 +2163,13 @@ function qaTierInfo(score) {
   return { label: 'Critical', pill: 'pill-red' };
 }
 
+// "Week 9" > "Week 31" as plain strings ('9' > '3'), so anything sorting
+// week labels needs the numeric portion, not localeCompare/default sort.
+const weekSortKey = w => parseInt((w || '').match(/\d+/)?.[0] || '0', 10);
+
 function populateQAFilters() {
   const months   = [...new Set(QA_ALL.map(d => d.month).filter(Boolean))].sort();
-  const weeks    = [...new Set(QA_ALL.map(d => d.week).filter(Boolean))].sort((a, b) => {
-    const na = parseInt((a.match(/\d+/) || [0])[0], 10);
-    const nb = parseInt((b.match(/\d+/) || [0])[0], 10);
-    return na - nb;
-  });
+  const weeks    = [...new Set(QA_ALL.map(d => d.week).filter(Boolean))].sort((a, b) => weekSortKey(a) - weekSortKey(b));
   const branches = [...new Set(QA_ALL.map(d => d.branch).filter(Boolean))].sort();
 
   createMultiSelect('qMonthMS',  months,   () => renderQA(), { allLabel: 'Semua Bulan',  unitLabel: 'Bulan' });
@@ -2278,7 +2278,7 @@ function openQADetail(key) {
   const sa = qaLastSA.find(s => s.key === key);
   if (!sa) return;
   const info = qaTierInfo(sa.avg);
-  const rows = [...sa.rows].sort((a, b) => (b.week || '').localeCompare(a.week || '') || (b.date || '').localeCompare(a.date || ''));
+  const rows = [...sa.rows].sort((a, b) => weekSortKey(b.week) - weekSortKey(a.week) || (b.date || '').localeCompare(a.date || ''));
   const rowsHtml = rows.map(d =>
     `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
       <span>${[d.week, d.scenario, d.reviewer].filter(Boolean).join(' · ') || '—'}</span>
