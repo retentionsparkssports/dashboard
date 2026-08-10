@@ -162,13 +162,15 @@ td.muted{color:var(--text2);}
 .qa-week.open .qa-week-arrow{transform:rotate(180deg);}
 .qa-week-body{display:none;padding:0 13px 13px;}
 .qa-week.open .qa-week-body{display:block;}
-/* QA detail body is controlled explicitly by JavaScript; this prevents other styles from hiding it. */
-.qa-week-body.qa-visible{display:block !important;}
 .qa-rubric-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);}
 .qa-rubric-name{font-size:12px;color:var(--text2);}
 .qa-rubric-score{min-width:28px;text-align:center;font-size:12px;font-weight:800;}
 .qa-score-summary{display:flex;justify-content:space-between;margin-top:10px;padding-top:9px;border-top:1px solid var(--border);font-size:11px;color:var(--text2);}
 .qa-notes{margin-top:10px;padding:9px 10px;background:var(--surface);border-radius:8px;font-size:11px;color:var(--text2);line-height:1.5;}
+#qaLeaderboardWrap .table-wrap{overflow-x:auto;}
+#qaLeaderboardWrap table{min-width:1200px;}
+#qaLeaderboardWrap th,#qaLeaderboardWrap td{white-space:nowrap;}
+#qaLeaderboardWrap td:nth-child(n+5):nth-child(-n+10),#qaLeaderboardWrap th:nth-child(n+5):nth-child(-n+10){text-align:center;}
 /* SEARCH */
 .search-wrap{position:relative;flex:1;max-width:260px;}
 .search-wrap input{width:100%;padding:7px 12px 7px 32px;background-image:none!important;}
@@ -436,7 +438,7 @@ td.muted{color:var(--text2);}
   <div class="ph">
     <div class="ph-left">
       <div class="ph-title">QA Performance</div>
-      <div class="ph-sub">Rata-rata skor QA chat review per SAR</div>
+      <div class="ph-sub">Rata-rata skor QA chat review per SAR + jumlah chats reviewed</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <div style="display:flex;background:var(--surface2);border-radius:10px;padding:3px;">
@@ -539,8 +541,16 @@ const SAR_PUB_CSV = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/pub?
 // we read that per-row score directly and average it ourselves rather than
 // trusting the workbook's own DASHBOARD_SAR aggregation tab.
 const QA_SHEET_ID  = '1SoXosWtIzTMht1rhzB-NEXDqrf9O64gEhfNbRT7OV8o';
+// CHAT_REVIEW = scored QA rows used for A1-A6 and Score /100.
 const QA_SHEET_GID = '283821924';
 const QA_CSV = `https://docs.google.com/spreadsheets/d/${QA_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${QA_SHEET_GID}`;
+
+// QA_SAMPLING = every sampled/reviewed chat row.
+// IMPORTANT: Chats Reviewed is counted by how many times Nama SAR appears
+// for the selected Week (and Month/Branch filters), regardless of whether
+// that row has a completed Score /100.
+const QA_SAMPLING_GID = '1398177538';
+const QA_SAMPLING_CSV = `https://docs.google.com/spreadsheets/d/${QA_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${QA_SAMPLING_GID}`;
 
 // =====================================================================
 // STATE
@@ -585,11 +595,13 @@ let centerLastData = [];
 let centerPaidData = [];
 
 // QA Chat Review state
-let QA_ALL = [];       // scored QA review rows used for averages
-let QA_CHAT_ALL = [];  // all chat-review rows with a SAR + Week, used for chat counts
+let QA_ALL = [];       // all scored QA review rows from CHAT_REVIEW
+let QA_CHAT_ALL = [];  // every sampled/reviewed chat row from QA_SAMPLING
 let qaLoaded = false;
-let qaLastData = [];   // filtered rows behind the current QA page render (for the detail modal)
-let qaLastSA = [];      // per-SAR aggregates (name, rows, avg, branches) behind the current QA page render
+let qaChatLoaded = false;
+let qaLastData = [];   // filtered scored rows behind the current QA page render
+let qaLastChatData = []; // filtered QA_SAMPLING rows behind current QA page render
+let qaLastSA = [];      // per-SAR aggregates behind the current QA page render
 
 // =====================================================================
 // DATE HELPERS
@@ -795,6 +807,7 @@ function loadSARSheet() {
 // QA Chat Review sheet — loaded independently of the main/SAR sheets (own
 // workbook, no shared fields needed), so it doesn't gate tryRender().
 function loadQASheet() {
+  // Load scored CHAT_REVIEW rows.
   withTimeout(
     done => Papa.parse(QA_CSV, {
       download: true, skipEmptyLines: true,
@@ -804,15 +817,34 @@ function loadQASheet() {
     outcome => {
       qaLoaded = true;
       if (outcome.timedOut) {
-        console.warn(`QA sheet fetch timed out after ${LOAD_TIMEOUT_MS/1000}s — check the QA workbook's sharing settings ("Anyone with the link").`);
-        return;
+        console.warn(`CHAT_REVIEW fetch timed out after ${LOAD_TIMEOUT_MS/1000}s.`);
+      } else if (outcome.ok) {
+        processQARows(outcome.res.data);
+        populateQAFilters();
+      } else {
+        console.warn('CHAT_REVIEW sheet failed to load.');
       }
-      if (!outcome.ok) {
-        console.warn('QA sheet failed to load.');
-        return;
+      if (document.getElementById('page-qa').classList.contains('active')) renderQA();
+    }
+  );
+
+  // Load QA_SAMPLING independently. This sheet is the source of truth for
+  // Chats Reviewed: one non-empty Nama SAR row = one reviewed chat.
+  withTimeout(
+    done => Papa.parse(QA_SAMPLING_CSV, {
+      download: true, skipEmptyLines: true,
+      complete(res) { done({ ok: true, res }); },
+      error()       { done({ ok: false }); }
+    }),
+    outcome => {
+      qaChatLoaded = true;
+      if (outcome.timedOut) {
+        console.warn(`QA_SAMPLING fetch timed out after ${LOAD_TIMEOUT_MS/1000}s.`);
+      } else if (outcome.ok) {
+        processQAChatRows(outcome.res.data);
+      } else {
+        console.warn('QA_SAMPLING sheet failed to load.');
       }
-      processQARows(outcome.res.data);
-      populateQAFilters();
       if (document.getElementById('page-qa').classList.contains('active')) renderQA();
     }
   );
@@ -923,156 +955,166 @@ function processSARRows(rows) {
 // visible ones, so a positional index like row[11] silently points at the
 // wrong cell whenever the sheet's layout shifts. [key, header text].
 const QA_RUBRIC_FIELDS = [
-  ['responsivenessPython', [
-    'A1 Responsiveness (Python)',
-    'A1 Responsiveness Python',
-    'A1 Responsiveness & Availability',
-    'A1 Responsiveness Availability',
-    'A1 Responsiveness & Availability (4pt)'
-  ]],
-  ['responsivenessQA', [
-    'A1 Responsiveness (QA)',
-    'A1 Responsiveness QA'
-  ]],
-  ['commClarity', [
-    'A2 Comm. Clarity',
-    'A2 Communication Clarity',
-    'A2 Communication Clarity (Bobot 11 pt)'
-  ]],
-  ['toneEmpathy', [
-    'A3 Tone & Empathy',
-    'A3 Tone and Empathy',
-    'A3 Tone & Empathy (Bobot 11 pt)'
-  ]],
-  ['personalization', [
-    'A4 Personalization',
-    'A4 Personalization (Bobot 10 pt)'
-  ]],
-  ['objHandling', [
-    'A5 Obj. Handling',
-    'A5 Objection Handling',
-    'A5 Obj Handling',
-    'A5 Objection Handling (Bobot 13 pt)',
-    'A5 Obj. Handling (Bobot 13 pt)'
-  ]],
-  ['negoSkill', [
-    'A6 Nego. Skill',
-    'A6 Negotiation Skill',
-    'A6 Nego Skill',
-    'A6 Nego. Skill (Bobot 10 pt)'
-  ]],
-  ['ctaOwnership', ['B7 CTA & Ownership', 'B7 CTA and Ownership']],
-  ['retention', ['B8 Retention']],
-  ['waEtiquette', ['C9 WA Etiquette', 'C9 WhatsApp Etiquette', 'C9 WA Etiquette / WhatsApp']]
+  ['responsivenessPython', 'A1 Responsiveness (Python)'],
+  ['responsivenessQA',     'A1 Responsiveness (QA)'],
+  ['commClarity',          'A2 Comm. Clarity'],
+  ['toneEmpathy',          'A3 Tone & Empathy'],
+  ['personalization',      'A4 Personalization'],
+  ['objHandling',          'A5 Obj. Handling'],
+  ['negoSkill',            'A6 Nego. Skill'],
+  ['ctaOwnership',         'B7 CTA & Ownership'],
+  ['retention',            'B8 Retention'],
+  ['waEtiquette',          'C9 WA Etiquette'],
 ];
 
-// Normalize headers so harmless differences in spaces, punctuation, line breaks,
-// or capitalization do not cause a rubric value to disappear.
-function qaNormalizeHeader(value) {
+// Visible leaderboard dimensions. A1 can contain two scored sub-fields in
+// CHAT_REVIEW; when both exist, A1 is the average of the available A1 parts.
+const QA_VISIBLE_DIMENSIONS = [
+  ['A1', ['responsivenessPython', 'responsivenessQA']],
+  ['A2', ['commClarity']],
+  ['A3', ['toneEmpathy']],
+  ['A4', ['personalization']],
+  ['A5', ['objHandling']],
+  ['A6', ['negoSkill']],
+];
+
+function qaHeaderKey(value) {
   return String(value || '')
     .toLowerCase()
-    .replace(/[\r\n]+/g, ' ')
+    .replace(/&/g, 'and')
+    .replace(/[’'`]/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
     .trim();
 }
 
-function qaFindHeaderIndex(headerMap, candidates) {
-  for (const candidate of candidates) {
-    const key = qaNormalizeHeader(candidate);
-    if (headerMap[key] !== undefined) return headerMap[key];
+function findHeaderRow(rows, requiredHeaders, maxRows = 40) {
+  const wanted = requiredHeaders.map(qaHeaderKey);
+  for (let i = 0; i < Math.min(rows.length, maxRows); i++) {
+    const joined = rows[i].map(qaHeaderKey).join(' | ');
+    if (wanted.every(h => joined.includes(h))) return i;
   }
-  return undefined;
+  return -1;
 }
 
-function qaParseNumber(value) {
-  if (value === null || value === undefined) return null;
-  const text = String(value).trim();
-  if (!text) return null;
-  const match = text.replace(',', '.').match(/-?\d+(?:\.\d+)?/);
-  if (!match) return null;
-  const n = Number(match[0]);
+function buildHeaderIndex(row) {
+  const idx = {};
+  row.forEach((h, j) => {
+    const k = qaHeaderKey(h);
+    if (k) idx[k] = j;
+  });
+  return idx;
+}
+
+function getHeaderValue(row, hIdx, aliases) {
+  for (const alias of aliases) {
+    const k = qaHeaderKey(alias);
+    if (hIdx[k] !== undefined) return String(row[hIdx[k]] || '').trim();
+  }
+  return '';
+}
+
+function getHeaderNumber(row, hIdx, aliases) {
+  const v = getHeaderValue(row, hIdx, aliases);
+  if (!v) return null;
+  const n = parseFloat(String(v).replace(',', '.'));
   return Number.isFinite(n) ? n : null;
+}
+
+function parseQAFilterMonth(value) {
+  const s = String(value || '').trim();
+  if (!s) return '';
+  // Already a normal month label such as Aug / July.
+  const m = s.match(/^([A-Za-z]+)\b/);
+  if (m && MONTH_NAMES.some(x => x.toLowerCase() === m[1].toLowerCase())) return m[1];
+  // dd/mm/yyyy or yyyy-mm-dd fallback.
+  const d = parseDateFull(s);
+  if (d) return MONTH_NAMES[d.getMonth()];
+  return s;
 }
 
 function processQARows(rows) {
   QA_ALL = [];
-  QA_CHAT_ALL = [];
-
-  let headerRowIdx = -1;
-  const hIdx = {};
-
-  // Find the header row using the stable CHAT_REVIEW headers.
-  for (let i = 0; i < Math.min(rows.length, 15); i++) {
-    const normalizedCells = rows[i].map(qaNormalizeHeader);
-    const hasSAR = normalizedCells.includes('nama sar');
-    const hasWeek = normalizedCells.includes('week');
-    const hasScore = normalizedCells.includes('score 100');
-    if (hasSAR && hasWeek && hasScore) {
-      headerRowIdx = i;
-      rows[i].forEach((h, j) => {
-        const key = qaNormalizeHeader(h);
-        if (key && hIdx[key] === undefined) hIdx[key] = j;
-      });
-      break;
-    }
-  }
-
+  const headerRowIdx = findHeaderRow(rows, ['Nama SAR', 'Score /100'], 40);
   if (headerRowIdx === -1) {
-    console.warn('QA Chat Review: header row not found.');
+    console.warn('CHAT_REVIEW: header row not found.');
     return;
   }
 
-  const readText = (row, candidates) => {
-    const idx = qaFindHeaderIndex(hIdx, candidates);
-    if (idx === undefined) return '';
-    return String(row[idx] ?? '').trim();
-  };
-
-  const readNumber = (row, candidates) => qaParseNumber(readText(row, candidates));
+  const hIdx = buildHeaderIndex(rows[headerRowIdx]);
+  const col = (row, aliases) => getHeaderValue(row, hIdx, Array.isArray(aliases) ? aliases : [aliases]);
+  const numCol = (row, aliases) => getHeaderNumber(row, hIdx, Array.isArray(aliases) ? aliases : [aliases]);
 
   for (let i = headerRowIdx + 1; i < rows.length; i++) {
     const row = rows[i];
-    if (!row || !row.length) continue;
+    const sar = col(row, ['Nama SAR']);
+    if (!sar) continue;
 
-    const sar = readText(row, ['Nama SAR']);
-    const week = readText(row, ['Week']);
-    if (!sar || !week) continue;
-
-    const common = {
-      sar,
-      branch:   readText(row, ['Center', 'Branch']),
-      month:    readText(row, ['Month', 'Bulan']),
-      week,
-      date:     readText(row, ['Tgl Data Sample', 'Tanggal Data Sample', 'Date']),
-      reviewer: readText(row, ['Reviewer']),
-      scenario: readText(row, ['Tipe Scenario', 'Type Scenario', 'Scenario'])
-    };
-
-    // Every named SAR + Week row counts as one reviewed-chat record.
-    // This is intentionally separate from scored rows so the chat count
-    // follows the actual CHAT_REVIEW sheet row count.
-    QA_CHAT_ALL.push(common);
-
-    const score = readNumber(row, ['Score /100', 'Score/100', 'Score 100']);
+    const score = numCol(row, ['Score /100', 'Score/100', 'Score']);
     if (score === null) continue;
 
     const rubric = {};
-    QA_RUBRIC_FIELDS.forEach(([key, candidates]) => {
-      rubric[key] = readNumber(row, candidates);
+    QA_RUBRIC_FIELDS.forEach(([key, header]) => {
+      const aliases = [header];
+      // Common alternate spellings in the newer sheet layout.
+      if (key === 'commClarity') aliases.push('A2 Communication Clarity', 'A2 Comm Clarity');
+      if (key === 'toneEmpathy') aliases.push('A3 Tone & Empathy', 'A3 Tone and Empathy');
+      if (key === 'personalization') aliases.push('A4 Personalization');
+      if (key === 'objHandling') aliases.push('A5 Objection Handling', 'A5 Obj Handling');
+      if (key === 'negoSkill') aliases.push('A6 Negotiation Skills', 'A6 Nego Skill');
+      rubric[key] = numCol(row, aliases);
     });
 
     QA_ALL.push({
-      ...common,
+      sar,
+      branch:   col(row, ['Center', 'Branch']),
+      month:    col(row, ['Month']) || parseQAFilterMonth(col(row, ['Tanggal Review', 'Tgl Data Sample'])),
+      week:     col(row, ['Week']),
+      date:     col(row, ['Tgl Data Sample', 'Tanggal Review']),
+      reviewer: col(row, ['Reviewer', 'Nama Reviewer']),
+      scenario: col(row, ['Tipe Scenario', 'Scenario']),
       score,
-      rawScore: readText(row, ['Raw Score /36', 'Raw Score/36', 'Raw Score 36']),
-      tier:     readText(row, ['Tier']),
-      notes:    readText(row, ['Kutipan & Catatan Review', 'Kutipan dan Catatan Review', 'Catatan Review']),
-      rubric
+      rawScore: col(row, ['Raw Score /36', 'Raw Score']),
+      tier:     col(row, ['Tier']),
+      notes:    col(row, ['Kutipan & Catatan Review', 'Kutipan & Catatan', 'Notes']),
+      rubric,
+    });
+  }
+  console.log(`CHAT_REVIEW loaded: ${QA_ALL.length} scored rows`);
+}
+
+// QA_SAMPLING parser. Unlike CHAT_REVIEW, this intentionally DOES NOT
+// require Score /100. Every row with a Nama SAR is one reviewed chat.
+function processQAChatRows(rows) {
+  QA_CHAT_ALL = [];
+  const headerRowIdx = findHeaderRow(rows, ['Nama SAR', 'Week'], 50);
+  if (headerRowIdx === -1) {
+    console.warn('QA_SAMPLING: header row not found.');
+    return;
+  }
+
+  const hIdx = buildHeaderIndex(rows[headerRowIdx]);
+  const col = (row, aliases) => getHeaderValue(row, hIdx, Array.isArray(aliases) ? aliases : [aliases]);
+
+  for (let i = headerRowIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const sar = col(row, ['Nama SAR']);
+    const week = col(row, ['Week']);
+    if (!sar || !week) continue;
+
+    const date = col(row, ['Tanggal Review', 'Tgl Data Sample']);
+    const month = col(row, ['Month']) || parseQAFilterMonth(date);
+    const branch = col(row, ['Center', 'Branch']);
+
+    QA_CHAT_ALL.push({
+      sar,
+      branch,
+      month,
+      week,
+      date,
     });
   }
 
-  console.log(`QA Chat Review loaded: ${QA_ALL.length} scored rows; ${QA_CHAT_ALL.length} chat rows`);
+  console.log(`QA_SAMPLING loaded: ${QA_CHAT_ALL.length} chat rows`);
 }
 
 // =====================================================================
@@ -2303,8 +2345,6 @@ function qaTierInfo(score) {
   return { label: 'Critical', pill: 'pill-red' };
 }
 
-// "Week 9" > "Week 31" as plain strings ('9' > '3'), so anything sorting
-// week labels needs the numeric portion, not localeCompare/default sort.
 const weekSortKey = w => parseInt((w || '').match(/\d+/)?.[0] || '0', 10);
 
 function populateQAFilters() {
@@ -2312,117 +2352,81 @@ function populateQAFilters() {
   const weeks    = [...new Set(QA_ALL.map(d => d.week).filter(Boolean))].sort((a, b) => weekSortKey(a) - weekSortKey(b));
   const branches = [...new Set(QA_ALL.map(d => d.branch).filter(Boolean))].sort();
 
-  createMultiSelect('qMonthMS',  months,   () => renderQA(), { allLabel: 'Semua Bulan',  unitLabel: 'Bulan' });
-  createMultiSelect('qWeekMS',   weeks,    () => renderQA(), { allLabel: 'Semua Week',   unitLabel: 'Week' });
+  createMultiSelect('qMonthMS', months, () => renderQA(), { allLabel: 'Semua Bulan', unitLabel: 'Bulan' });
+  createMultiSelect('qWeekMS', weeks, () => renderQA(), { allLabel: 'Semua Week', unitLabel: 'Week' });
   createMultiSelect('qBranchMS', branches, () => renderQA(), { allLabel: 'Semua Branch', unitLabel: 'Branch' });
 }
 
-function filterQAData() {
+function qaDimensionValue(rows, dimensionKey) {
+  const fieldKeys = QA_VISIBLE_DIMENSIONS.find(([key]) => key === dimensionKey)?.[1] || [];
+  const values = [];
+  rows.forEach(d => {
+    fieldKeys.forEach(fKey => {
+      const v = d.rubric ? d.rubric[fKey] : null;
+      if (v !== null && v !== undefined && Number.isFinite(Number(v))) values.push(Number(v));
+    });
+  });
+  if (!values.length) return null;
+  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+  return Math.round(avg * 10) / 10;
+}
+
+function qaDimensionValues(rows) {
+  const out = {};
+  QA_VISIBLE_DIMENSIONS.forEach(([key]) => { out[key] = qaDimensionValue(rows, key); });
+  return out;
+}
+
+function formatQADimension(v) {
+  return v === null || v === undefined || !Number.isFinite(Number(v)) ? '—' : Number(v).toFixed(1).replace('.0', '');
+}
+
+function countQAChats(chatRows, selectedMonthSet, selectedWeekSet, selectedBranchSet) {
+  const counts = {};
+  const filteredChatRows = [];
+
+  chatRows.forEach(d => {
+    if (selectedMonthSet.size && !selectedMonthSet.has(d.month)) return;
+    if (selectedWeekSet.size && !selectedWeekSet.has(d.week)) return;
+    if (selectedBranchSet.size && d.branch && !selectedBranchSet.has(d.branch)) return;
+    // If a branch filter is selected and this sampling row has no branch,
+    // don't accidentally count it for the selected branch.
+    if (selectedBranchSet.size && !d.branch) return;
+
+    const key = normName(d.sar);
+    if (!key) return;
+    counts[key] = (counts[key] || 0) + 1;
+    filteredChatRows.push(d);
+  });
+
+  return { counts, filteredChatRows };
+}
+
+function renderQA() {
+  if (!QA_ALL.length) return;
+
   const moSet = multiSelects['qMonthMS'] ? multiSelects['qMonthMS'].getSelected() : new Set();
   const wkSet = multiSelects['qWeekMS'] ? multiSelects['qWeekMS'].getSelected() : new Set();
   const brSet = multiSelects['qBranchMS'] ? multiSelects['qBranchMS'].getSelected() : new Set();
 
-  const applyFilters = data => data.filter(d => {
-    if (moSet.size && !moSet.has(d.month)) return false;
-    if (wkSet.size && !wkSet.has(d.week)) return false;
-    if (brSet.size && !brSet.has(d.branch)) return false;
-    return true;
-  });
-
-  return {
-    scored: applyFilters(QA_ALL),
-    chats: applyFilters(QA_CHAT_ALL)
-  };
-}
-
-// Return one visible A1-A6 score for a row.
-// A1 is supported in two historical/source layouts:
-//  - one A1 score column; or
-//  - two A1 sub-scores (Python + QA), which are averaged for the visible A1.
-function getVisibleQARubric(row, key) {
-  const r = row.rubric || {};
-
-  if (key === 'A1') {
-    const vals = [r.responsivenessPython, r.responsivenessQA]
-      .filter(v => v !== null && v !== undefined && Number.isFinite(Number(v)))
-      .map(Number);
-
-    if (!vals.length) return null;
-    return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
-  }
-
-  const map = {
-    A2: 'commClarity',
-    A3: 'toneEmpathy',
-    A4: 'personalization',
-    A5: 'objHandling',
-    A6: 'negoSkill'
-  };
-
-  const value = r[map[key]];
-  return value === null || value === undefined || !Number.isFinite(Number(value))
-    ? null
-    : Number(value);
-}
-
-function averageQARubric(rows, key) {
-  const values = rows
-    .map(row => getVisibleQARubric(row, key))
-    .filter(v => v !== null && Number.isFinite(Number(v)));
-
-  if (!values.length) return null;
-
-  return Math.round(
-    (values.reduce((sum, v) => sum + v, 0) / values.length) * 10
-  ) / 10;
-}
-
-function formatQARubricScore(value) {
-  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
-  return Number.isInteger(Number(value)) ? String(value) : Number(value).toFixed(1);
-}
-
-function qaCompactScoreCell(value) {
-  const display = formatQARubricScore(value);
-  const color = qaRubricColor(value);
-  return `<td style="text-align:center;font-weight:800;color:${color};">${display}</td>`;
-}
-
-function renderQA() {
-  if (!QA_ALL.length && !QA_CHAT_ALL.length) return;
-
-  const filtered = filterQAData();
-  const data = filtered.scored;
-  const chatData = filtered.chats;
-
+  let data = QA_ALL;
+  if (moSet.size) data = data.filter(d => moSet.has(d.month));
+  if (wkSet.size) data = data.filter(d => wkSet.has(d.week));
+  if (brSet.size) data = data.filter(d => brSet.has(d.branch));
   qaLastData = data;
 
-  document.getElementById('qaNote').textContent =
-    `Rata-rata skor dihitung dari "Score /100" pada CHAT_REVIEW. Chats Reviewed dihitung dari jumlah baris CHAT_REVIEW yang memiliki Nama SAR + Week. Semua angka mengikuti filter Bulan, Week, dan Branch. ${chatData.length} chats reviewed · ${data.length} scored reviews.`;
+  const chatResult = countQAChats(QA_CHAT_ALL, moSet, wkSet, brSet);
+  qaLastChatData = chatResult.filteredChatRows;
 
-  // Group scored reviews per SAR for score averages.
+  document.getElementById('qaNote').textContent =
+    `Score A1–A6 dan Rata-rata Skor dihitung dari CHAT_REVIEW. Chats Reviewed dihitung dari QA_SAMPLING berdasarkan jumlah kemunculan Nama SAR pada Week yang dipilih. ${chatResult.filteredChatRows.length} chat sampling cocok dengan filter saat ini dan ${data.length} scored review memiliki Score /100.`;
+
   const saMap = {};
   data.forEach(d => {
     const key = normName(d.sar);
-    if (!saMap[key]) {
-      saMap[key] = {
-        key,
-        name: d.sar,
-        rows: [],
-        branches: new Set()
-      };
-    }
-
+    if (!saMap[key]) saMap[key] = { key, name: d.sar, rows: [], branches: new Set() };
     saMap[key].rows.push(d);
     if (d.branch) saMap[key].branches.add(d.branch);
-  });
-
-  // Count actual CHAT_REVIEW rows separately.
-  const chatCountMap = {};
-  chatData.forEach(d => {
-    const key = normName(d.sar);
-    if (!chatCountMap[key]) chatCountMap[key] = 0;
-    chatCountMap[key]++;
   });
 
   const allSA = Object.values(saMap)
@@ -2430,65 +2434,33 @@ function renderQA() {
       ...sa,
       avg: qaAvg(sa.rows),
       count: sa.rows.length,
-      chatCount: chatCountMap[sa.key] || 0,
-      rubricAvg: {
-        A1: averageQARubric(sa.rows, 'A1'),
-        A2: averageQARubric(sa.rows, 'A2'),
-        A3: averageQARubric(sa.rows, 'A3'),
-        A4: averageQARubric(sa.rows, 'A4'),
-        A5: averageQARubric(sa.rows, 'A5'),
-        A6: averageQARubric(sa.rows, 'A6')
-      }
+      chatCount: chatResult.counts[sa.key] || 0,
+      dimensions: qaDimensionValues(sa.rows),
     }))
     .sort((a, b) => b.avg - a.avg);
-
-  // Include SARs that have chat rows but no completed score yet.
-  Object.keys(chatCountMap).forEach(key => {
-    if (saMap[key]) return;
-
-    const sample = chatData.find(d => normName(d.sar) === key);
-    if (!sample) return;
-
-    allSA.push({
-      key,
-      name: sample.sar,
-      rows: [],
-      avg: 0,
-      count: 0,
-      chatCount: chatCountMap[key],
-      branches: new Set(chatData.filter(d => normName(d.sar) === key && d.branch).map(d => d.branch)),
-      rubricAvg: { A1:null, A2:null, A3:null, A4:null, A5:null, A6:null }
-    });
-  });
-
-  allSA.sort((a, b) => {
-    if (b.avg !== a.avg) return b.avg - a.avg;
-    return b.chatCount - a.chatCount;
-  });
 
   qaLastSA = allSA;
 
   const tierDefs = [
-    { cls: 'tier-top',      icon: '🏆', title: 'Excellent', badge: 'Skor ≥ 85',  filter: sa => sa.avg >= 85 },
-    { cls: 'tier-good',     icon: '📈', title: 'Good',       badge: 'Skor 70–84', filter: sa => sa.avg >= 70 && sa.avg < 85 },
-    { cls: 'tier-mid',      icon: '⚠️', title: 'Needs Dev',  badge: 'Skor 50–69', filter: sa => sa.avg >= 50 && sa.avg < 70 },
-    { cls: 'tier-critical', icon: '🚨', title: 'Critical',   badge: 'Skor < 50',  filter: sa => sa.avg < 50 }
+    { cls: 'tier-top', icon: '🏆', title: 'Excellent', badge: 'Skor ≥ 85', filter: sa => sa.avg >= 85 },
+    { cls: 'tier-good', icon: '📈', title: 'Good', badge: 'Skor 70–84', filter: sa => sa.avg >= 70 && sa.avg < 85 },
+    { cls: 'tier-mid', icon: '⚠️', title: 'Needs Dev', badge: 'Skor 50–69', filter: sa => sa.avg >= 50 && sa.avg < 70 },
+    { cls: 'tier-critical', icon: '🚨', title: 'Critical', badge: 'Skor < 50', filter: sa => sa.avg < 50 },
   ];
 
   const avatarColors = ['#0d9e5c','#2563eb','#e03131','#d97706','#7c3aed','#e8440c','#0891b2','#16a34a'];
-
   const qaCard = (sa, i) => {
     const color = avatarColors[i % avatarColors.length];
     const initials = sa.name.split(' ').map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
     const safeKey = sa.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-
+    const dims = sa.dimensions;
     return `<div class="sa-card">
       <div class="sa-avatar" style="background:${color};">${initials}</div>
-      <div class="sa-name">${qaEscapeHtml(sa.name)}</div>
+      <div class="sa-name">${sa.name}</div>
       <div class="sa-stats">
-        <div class="sa-row"><span>Chats reviewed</span><span>${sa.chatCount}</span></div>
-        <div class="sa-row"><span>Scored reviews</span><span>${sa.count}</span></div>
-        <div class="sa-row"><span>Rata-rata skor</span><span style="font-weight:800;color:${qaScoreColor(sa.avg)};">${sa.count ? sa.avg : '—'}</span></div>
+        <div class="sa-row"><span>Chats Reviewed</span><span>${sa.chatCount}</span></div>
+        <div class="sa-row"><span>Rata-rata skor</span><span style="font-weight:800;color:${qaScoreColor(sa.avg)};">${sa.avg}</span></div>
+        <div class="sa-row"><span>A1–A6</span><span style="font-size:11px;color:var(--text2);">${QA_VISIBLE_DIMENSIONS.map(([k]) => `${k}: ${formatQADimension(dims[k])}`).join(' · ')}</span></div>
         <div class="sa-row"><span>Branch</span><span style="font-size:11px;color:var(--text2);">${[...sa.branches].join(', ') || '—'}</span></div>
       </div>
       <button class="sa-detail-btn" onclick="event.stopPropagation();openQADetail('${safeKey}')">📊 Detail Review</button>
@@ -2496,20 +2468,14 @@ function renderQA() {
   };
 
   document.getElementById('qaTiers').innerHTML = tierDefs.map(tier => {
-    const members = allSA.filter(sa => sa.count > 0 && tier.filter(sa));
-
+    const members = allSA.filter(tier.filter);
     return `<div class="tier-section ${tier.cls}">
       <div class="tier-header">
-        <div class="tier-header-inner">
-          <span class="tier-icon">${tier.icon}</span>
-          <span class="tier-title">${tier.title}</span>
-        </div>
+        <div class="tier-header-inner"><span class="tier-icon">${tier.icon}</span><span class="tier-title">${tier.title}</span></div>
         <span class="tier-badge">${tier.badge} · ${members.length} SAR</span>
       </div>
       <div class="tier-body">
-        ${members.length
-          ? `<div class="sa-grid">${members.map((sa, i) => qaCard(sa, i)).join('')}</div>`
-          : `<div class="tier-empty">Tidak ada SAR di tier ini untuk periode ini.</div>`}
+        ${members.length ? `<div class="sa-grid">${members.map((sa, i) => qaCard(sa, i)).join('')}</div>` : `<div class="tier-empty">Tidak ada SAR di tier ini untuk periode ini.</div>`}
       </div>
     </div>`;
   }).join('');
@@ -2519,24 +2485,21 @@ function renderQA() {
 
 function renderQALeaderboard(allSA) {
   const rows = [...allSA].sort((a, b) => b.avg - a.avg);
-
   document.getElementById('qaLeaderboardBody').innerHTML = rows.map((sa, i) => {
     const info = qaTierInfo(sa.avg);
     const safeKey = sa.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-
+    const dims = sa.dimensions || {};
     return `<tr onclick="openQADetail('${safeKey}')">
       <td class="muted">${i + 1}</td>
-      <td><strong>${qaEscapeHtml(sa.name)}</strong></td>
+      <td><strong>${sa.name}</strong></td>
       <td class="muted">${[...sa.branches].join(', ') || '—'}</td>
       <td style="font-weight:800;">${sa.chatCount}</td>
-      ${qaCompactScoreCell(sa.rubricAvg.A1)}
-      ${qaCompactScoreCell(sa.rubricAvg.A2)}
-      ${qaCompactScoreCell(sa.rubricAvg.A3)}
-      ${qaCompactScoreCell(sa.rubricAvg.A4)}
-      ${qaCompactScoreCell(sa.rubricAvg.A5)}
-      ${qaCompactScoreCell(sa.rubricAvg.A6)}
-      <td style="color:${qaScoreColor(sa.avg)};font-weight:800;">${sa.count ? sa.avg : '—'}</td>
-      <td><span class="pill ${info.pill}">${sa.count ? info.label : 'No Score'}</span></td>
+      ${QA_VISIBLE_DIMENSIONS.map(([key]) => {
+        const v = dims[key];
+        return `<td style="color:${qaRubricColor(v)};font-weight:800;text-align:center;">${formatQADimension(v)}</td>`;
+      }).join('')}
+      <td style="color:${qaScoreColor(sa.avg)};font-weight:800;">${sa.avg}</td>
+      <td><span class="pill ${info.pill}">${info.label}</span></td>
     </tr>`;
   }).join('');
 }
@@ -2548,8 +2511,6 @@ function setQAView(view) {
   document.getElementById('qaViewLeaderboardBtn').classList.toggle('active', view === 'leaderboard');
 }
 
-// Rubric scores are 1-4 per dimension (see the sheet's own note: "Skor 1-4
-// per dimensi") — colored on that scale, separately from the /100 overall.
 function qaRubricColor(score) {
   if (score === null || score === undefined || isNaN(score)) return 'var(--text3)';
   if (score >= 4) return 'var(--green)';
@@ -2558,151 +2519,56 @@ function qaRubricColor(score) {
   return 'var(--red)';
 }
 
-function qaEscapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 function openQADetail(key) {
   const sa = qaLastSA.find(s => s.key === key);
-  if (!sa) {
-    console.warn('QA detail: SAR not found for key:', key);
-    return;
-  }
-
+  if (!sa) return;
   const info = qaTierInfo(sa.avg);
-  const rows = [...sa.rows].sort(
-    (a, b) => weekSortKey(b.week) - weekSortKey(a.week) ||
-              String(b.date || '').localeCompare(String(a.date || ''))
-  );
+  const rows = [...sa.rows].sort((a, b) => weekSortKey(b.week) - weekSortKey(a.week) || (b.date || '').localeCompare(a.date || ''));
+  const chatCount = sa.chatCount || 0;
 
   const weekHtml = rows.map((d, i) => {
     const rubricRows = QA_RUBRIC_FIELDS.map(([fKey, label]) => {
       const value = d.rubric ? d.rubric[fKey] : null;
-      const display = value === null || value === undefined || Number.isNaN(value)
-        ? '—'
-        : value;
-
-      return `
-        <div class="qa-rubric-row">
-          <span class="qa-rubric-name">${qaEscapeHtml(label[0])}</span>
-          <strong class="qa-rubric-score" style="color:${qaRubricColor(value)};">
-            ${qaEscapeHtml(display)}
-          </strong>
-        </div>`;
+      const display = (value === null || value === undefined || isNaN(value)) ? '—' : value;
+      return `<div class="qa-rubric-row"><span class="qa-rubric-name">${label}</span><strong class="qa-rubric-score" style="color:${qaRubricColor(value)};">${display}</strong></div>`;
     }).join('');
 
-    const rubricValues = QA_RUBRIC_FIELDS
-      .map(([fKey]) => d.rubric ? d.rubric[fKey] : null)
-      .filter(v => v !== null && v !== undefined && !Number.isNaN(v));
-
-    const rubricTotal = rubricValues.reduce((sum, v) => sum + Number(v), 0);
+    const rubricValues = QA_RUBRIC_FIELDS.map(([fKey]) => d.rubric ? d.rubric[fKey] : null).filter(v => v !== null && v !== undefined && !isNaN(v));
+    const rubricTotal = rubricValues.reduce((sum, v) => sum + v, 0);
     const rubricMax = rubricValues.length * 4;
+    const notesHtml = d.notes ? `<div class="qa-notes"><strong>Catatan:</strong><br>${d.notes}</div>` : '';
 
-    const notesHtml = d.notes
-      ? `<div class="qa-notes"><strong>Catatan:</strong><br>${qaEscapeHtml(d.notes)}</div>`
-      : '';
-
-    const scenarioHtml = d.scenario
-      ? `<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Scenario: ${qaEscapeHtml(d.scenario)}</div>`
-      : '';
-
-    return `
-      <div class="qa-week ${i === 0 ? 'open' : ''}">
-        <button type="button" class="qa-week-head" onclick="toggleQAWeek(this)">
-          <span>
-            <span class="qa-week-title">${qaEscapeHtml(d.week || 'Week —')}</span>
-            ${d.reviewer ? `<span style="font-size:11px;color:var(--text3);"> · ${qaEscapeHtml(d.reviewer)}</span>` : ''}
-          </span>
-          <span style="display:flex;align-items:center;gap:10px;">
-            <strong class="qa-week-score" style="color:${qaScoreColor(d.score)};">${qaEscapeHtml(d.score)}</strong>
-            <span class="qa-week-arrow">${i === 0 ? '▲' : '▼'}</span>
-          </span>
-        </button>
-
-        <div class="qa-week-body ${i === 0 ? 'qa-visible' : ''}">
-          ${scenarioHtml}
-          ${rubricRows}
-
-          <div class="qa-score-summary">
-            <span>Rubric Total</span>
-            <strong>${rubricTotal} / ${rubricMax}</strong>
-          </div>
-
-          <div class="qa-score-summary">
-            <span>Score /100</span>
-            <strong style="color:${qaScoreColor(d.score)};">${qaEscapeHtml(d.score)}</strong>
-          </div>
-
-          ${notesHtml}
-        </div>
-      </div>`;
-  }).join('');
-
-  const titleEl = document.getElementById('mTitle');
-  const bodyEl = document.getElementById('mBody');
-  const overlayEl = document.getElementById('overlay');
-
-  if (!titleEl || !bodyEl || !overlayEl) {
-    console.error('QA detail: modal elements not found in HTML.');
-    return;
-  }
-
-  titleEl.textContent = `QA Detail — ${sa.name}`;
-
-  bodyEl.innerHTML = `
-    <div class="m-grid">
-      <div class="m-stat">
-        <div class="m-stat-l">Total Review</div>
-        <div class="m-stat-v">${sa.count}</div>
-      </div>
-
-      <div class="m-stat">
-        <div class="m-stat-l">Rata-rata Skor</div>
-        <div class="m-stat-v" style="color:${qaScoreColor(sa.avg)};">${sa.avg}</div>
-      </div>
-
-      <div class="m-stat">
-        <div class="m-stat-l">Tier</div>
-        <div class="m-stat-v">
-          <span class="pill ${info.pill}">${info.label}</span>
-        </div>
-      </div>
-
-      <div class="m-stat">
-        <div class="m-stat-l">Branch</div>
-        <div class="m-stat-v">${qaEscapeHtml([...sa.branches].join(', ') || '—')}</div>
-      </div>
-    </div>
-
-    <div class="m-sec">
-      <div class="m-sec-t">Detail Score per Week</div>
-      <div>
-        ${weekHtml || '<div style="padding:10px;color:var(--text3);">Tidak ada review.</div>'}
+    return `<div class="qa-week ${i === 0 ? 'open' : ''}">
+      <button type="button" class="qa-week-head" onclick="toggleQAWeek(this)">
+        <span><span class="qa-week-title">${d.week || 'Week —'}</span>${d.reviewer ? `<span style="font-size:11px;color:var(--text3);"> · ${d.reviewer}</span>` : ''}</span>
+        <span style="display:flex;align-items:center;gap:10px;"><strong class="qa-week-score" style="color:${qaScoreColor(d.score)};">${d.score}</strong><span class="qa-week-arrow">▼</span></span>
+      </button>
+      <div class="qa-week-body">
+        ${d.scenario ? `<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Scenario: ${d.scenario}</div>` : ''}
+        ${rubricRows}
+        <div class="qa-score-summary"><span>Rubric Total</span><strong>${rubricTotal} / ${rubricMax}</strong></div>
+        <div class="qa-score-summary"><span>Score /100</span><strong style="color:${qaScoreColor(d.score)};">${d.score}</strong></div>
+        ${notesHtml}
       </div>
     </div>`;
+  }).join('');
 
-  overlayEl.classList.add('open');
+  document.getElementById('mTitle').textContent = `QA Detail — ${sa.name}`;
+  document.getElementById('mBody').innerHTML = `
+    <div class="m-grid">
+      <div class="m-stat"><div class="m-stat-l">Chats Reviewed</div><div class="m-stat-v">${chatCount}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Scored Review</div><div class="m-stat-v">${sa.count}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Rata-rata Skor</div><div class="m-stat-v" style="color:${qaScoreColor(sa.avg)};">${sa.avg}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Tier</div><div class="m-stat-v"><span class="pill ${info.pill}">${info.label}</span></div></div>
+    </div>
+    <div class="m-sec"><div class="m-sec-t">Detail Score per Review</div><div>${weekHtml || 'Tidak ada scored review.'}</div></div>`;
+  document.getElementById('overlay').classList.add('open');
 }
 
 function toggleQAWeek(button) {
   const week = button.closest('.qa-week');
   if (!week) return;
-
-  const body = week.querySelector('.qa-week-body');
-  const arrow = week.querySelector('.qa-week-arrow');
-  if (!body) return;
-
-  const willOpen = !week.classList.contains('open');
-  week.classList.toggle('open', willOpen);
-  body.classList.toggle('qa-visible', willOpen);
-  body.style.display = willOpen ? 'block' : 'none';
-
-  if (arrow) arrow.textContent = willOpen ? '▲' : '▼';
+  week.classList.toggle('open');
 }
 
 // =====================================================================
