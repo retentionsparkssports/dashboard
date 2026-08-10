@@ -459,7 +459,13 @@ td.muted{color:var(--text2);}
               <th>#</th>
               <th>Nama</th>
               <th>Center</th>
-              <th>Total Review</th>
+              <th>Chats Reviewed</th>
+              <th>A1</th>
+              <th>A2</th>
+              <th>A3</th>
+              <th>A4</th>
+              <th>A5</th>
+              <th>A6</th>
               <th>Rata-rata Skor</th>
               <th>Tier</th>
             </tr>
@@ -579,7 +585,8 @@ let centerLastData = [];
 let centerPaidData = [];
 
 // QA Chat Review state
-let QA_ALL = [];       // all scored QA review rows
+let QA_ALL = [];       // scored QA review rows used for averages
+let QA_CHAT_ALL = [];  // all chat-review rows with a SAR + Week, used for chat counts
 let qaLoaded = false;
 let qaLastData = [];   // filtered rows behind the current QA page render (for the detail modal)
 let qaLastSA = [];      // per-SAR aggregates (name, rows, avg, branches) behind the current QA page render
@@ -916,16 +923,47 @@ function processSARRows(rows) {
 // visible ones, so a positional index like row[11] silently points at the
 // wrong cell whenever the sheet's layout shifts. [key, header text].
 const QA_RUBRIC_FIELDS = [
-  ['responsivenessPython', ['A1 Responsiveness (Python)', 'A1 Responsiveness Python']],
-  ['responsivenessQA',     ['A1 Responsiveness (QA)', 'A1 Responsiveness QA']],
-  ['commClarity',          ['A2 Comm. Clarity', 'A2 Communication Clarity']],
-  ['toneEmpathy',          ['A3 Tone & Empathy', 'A3 Tone and Empathy']],
-  ['personalization',      ['A4 Personalization']],
-  ['objHandling',          ['A5 Obj. Handling', 'A5 Objection Handling']],
-  ['negoSkill',            ['A6 Nego. Skill', 'A6 Negotiation Skill']],
-  ['ctaOwnership',         ['B7 CTA & Ownership', 'B7 CTA and Ownership']],
-  ['retention',            ['B8 Retention']],
-  ['waEtiquette',          ['C9 WA Etiquette', 'C9 WhatsApp Etiquette', 'C9 WA Etiquette / WhatsApp']],
+  ['responsivenessPython', [
+    'A1 Responsiveness (Python)',
+    'A1 Responsiveness Python',
+    'A1 Responsiveness & Availability',
+    'A1 Responsiveness Availability',
+    'A1 Responsiveness & Availability (4pt)'
+  ]],
+  ['responsivenessQA', [
+    'A1 Responsiveness (QA)',
+    'A1 Responsiveness QA'
+  ]],
+  ['commClarity', [
+    'A2 Comm. Clarity',
+    'A2 Communication Clarity',
+    'A2 Communication Clarity (Bobot 11 pt)'
+  ]],
+  ['toneEmpathy', [
+    'A3 Tone & Empathy',
+    'A3 Tone and Empathy',
+    'A3 Tone & Empathy (Bobot 11 pt)'
+  ]],
+  ['personalization', [
+    'A4 Personalization',
+    'A4 Personalization (Bobot 10 pt)'
+  ]],
+  ['objHandling', [
+    'A5 Obj. Handling',
+    'A5 Objection Handling',
+    'A5 Obj Handling',
+    'A5 Objection Handling (Bobot 13 pt)',
+    'A5 Obj. Handling (Bobot 13 pt)'
+  ]],
+  ['negoSkill', [
+    'A6 Nego. Skill',
+    'A6 Negotiation Skill',
+    'A6 Nego Skill',
+    'A6 Nego. Skill (Bobot 10 pt)'
+  ]],
+  ['ctaOwnership', ['B7 CTA & Ownership', 'B7 CTA and Ownership']],
+  ['retention', ['B8 Retention']],
+  ['waEtiquette', ['C9 WA Etiquette', 'C9 WhatsApp Etiquette', 'C9 WA Etiquette / WhatsApp']]
 ];
 
 // Normalize headers so harmless differences in spaces, punctuation, line breaks,
@@ -959,16 +997,18 @@ function qaParseNumber(value) {
 
 function processQARows(rows) {
   QA_ALL = [];
+  QA_CHAT_ALL = [];
 
   let headerRowIdx = -1;
   const hIdx = {};
 
-  // Find the header row by its stable fields.
+  // Find the header row using the stable CHAT_REVIEW headers.
   for (let i = 0; i < Math.min(rows.length, 15); i++) {
     const normalizedCells = rows[i].map(qaNormalizeHeader);
     const hasSAR = normalizedCells.includes('nama sar');
-    const hasScore = normalizedCells.includes('score 100') || normalizedCells.includes('score 100');
-    if (hasSAR && hasScore) {
+    const hasWeek = normalizedCells.includes('week');
+    const hasScore = normalizedCells.includes('score 100');
+    if (hasSAR && hasWeek && hasScore) {
       headerRowIdx = i;
       rows[i].forEach((h, j) => {
         const key = qaNormalizeHeader(h);
@@ -979,16 +1019,16 @@ function processQARows(rows) {
   }
 
   if (headerRowIdx === -1) {
-    console.warn('QA Chat Review: header row not found. Expected "Nama SAR" and "Score /100".');
+    console.warn('QA Chat Review: header row not found.');
     return;
   }
 
-  const headerIndex = name => qaFindHeaderIndex(hIdx, [name]);
   const readText = (row, candidates) => {
     const idx = qaFindHeaderIndex(hIdx, candidates);
     if (idx === undefined) return '';
     return String(row[idx] ?? '').trim();
   };
+
   const readNumber = (row, candidates) => qaParseNumber(readText(row, candidates));
 
   for (let i = headerRowIdx + 1; i < rows.length; i++) {
@@ -996,7 +1036,23 @@ function processQARows(rows) {
     if (!row || !row.length) continue;
 
     const sar = readText(row, ['Nama SAR']);
-    if (!sar) continue;
+    const week = readText(row, ['Week']);
+    if (!sar || !week) continue;
+
+    const common = {
+      sar,
+      branch:   readText(row, ['Center', 'Branch']),
+      month:    readText(row, ['Month', 'Bulan']),
+      week,
+      date:     readText(row, ['Tgl Data Sample', 'Tanggal Data Sample', 'Date']),
+      reviewer: readText(row, ['Reviewer']),
+      scenario: readText(row, ['Tipe Scenario', 'Type Scenario', 'Scenario'])
+    };
+
+    // Every named SAR + Week row counts as one reviewed-chat record.
+    // This is intentionally separate from scored rows so the chat count
+    // follows the actual CHAT_REVIEW sheet row count.
+    QA_CHAT_ALL.push(common);
 
     const score = readNumber(row, ['Score /100', 'Score/100', 'Score 100']);
     if (score === null) continue;
@@ -1007,22 +1063,16 @@ function processQARows(rows) {
     });
 
     QA_ALL.push({
-      sar,
-      branch:   readText(row, ['Center', 'Branch']),
-      month:    readText(row, ['Month', 'Bulan']),
-      week:     readText(row, ['Week']),
-      date:     readText(row, ['Tgl Data Sample', 'Tanggal Data Sample', 'Date']),
-      reviewer: readText(row, ['Reviewer']),
-      scenario: readText(row, ['Tipe Scenario', 'Type Scenario', 'Scenario']),
+      ...common,
       score,
       rawScore: readText(row, ['Raw Score /36', 'Raw Score/36', 'Raw Score 36']),
       tier:     readText(row, ['Tier']),
       notes:    readText(row, ['Kutipan & Catatan Review', 'Kutipan dan Catatan Review', 'Catatan Review']),
-      rubric,
+      rubric
     });
   }
 
-  console.log(`QA Chat Review loaded: ${QA_ALL.length} scored rows`);
+  console.log(`QA Chat Review loaded: ${QA_ALL.length} scored rows; ${QA_CHAT_ALL.length} chat rows`);
 }
 
 // =====================================================================
@@ -2267,61 +2317,187 @@ function populateQAFilters() {
   createMultiSelect('qBranchMS', branches, () => renderQA(), { allLabel: 'Semua Branch', unitLabel: 'Branch' });
 }
 
-function renderQA() {
-  if (!QA_ALL.length) return;
-  const moSet = multiSelects['qMonthMS']  ? multiSelects['qMonthMS'].getSelected()  : new Set();
-  const wkSet = multiSelects['qWeekMS']   ? multiSelects['qWeekMS'].getSelected()   : new Set();
+function filterQAData() {
+  const moSet = multiSelects['qMonthMS'] ? multiSelects['qMonthMS'].getSelected() : new Set();
+  const wkSet = multiSelects['qWeekMS'] ? multiSelects['qWeekMS'].getSelected() : new Set();
   const brSet = multiSelects['qBranchMS'] ? multiSelects['qBranchMS'].getSelected() : new Set();
 
-  let data = QA_ALL;
-  if (moSet.size) data = data.filter(d => moSet.has(d.month));
-  if (wkSet.size) data = data.filter(d => wkSet.has(d.week));
-  if (brSet.size) data = data.filter(d => brSet.has(d.branch));
+  const applyFilters = data => data.filter(d => {
+    if (moSet.size && !moSet.has(d.month)) return false;
+    if (wkSet.size && !wkSet.has(d.week)) return false;
+    if (brSet.size && !brSet.has(d.branch)) return false;
+    return true;
+  });
+
+  return {
+    scored: applyFilters(QA_ALL),
+    chats: applyFilters(QA_CHAT_ALL)
+  };
+}
+
+// Return one visible A1-A6 score for a row.
+// A1 is supported in two historical/source layouts:
+//  - one A1 score column; or
+//  - two A1 sub-scores (Python + QA), which are averaged for the visible A1.
+function getVisibleQARubric(row, key) {
+  const r = row.rubric || {};
+
+  if (key === 'A1') {
+    const vals = [r.responsivenessPython, r.responsivenessQA]
+      .filter(v => v !== null && v !== undefined && Number.isFinite(Number(v)))
+      .map(Number);
+
+    if (!vals.length) return null;
+    return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
+  }
+
+  const map = {
+    A2: 'commClarity',
+    A3: 'toneEmpathy',
+    A4: 'personalization',
+    A5: 'objHandling',
+    A6: 'negoSkill'
+  };
+
+  const value = r[map[key]];
+  return value === null || value === undefined || !Number.isFinite(Number(value))
+    ? null
+    : Number(value);
+}
+
+function averageQARubric(rows, key) {
+  const values = rows
+    .map(row => getVisibleQARubric(row, key))
+    .filter(v => v !== null && Number.isFinite(Number(v)));
+
+  if (!values.length) return null;
+
+  return Math.round(
+    (values.reduce((sum, v) => sum + v, 0) / values.length) * 10
+  ) / 10;
+}
+
+function formatQARubricScore(value) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
+  return Number.isInteger(Number(value)) ? String(value) : Number(value).toFixed(1);
+}
+
+function qaCompactScoreCell(value) {
+  const display = formatQARubricScore(value);
+  const color = qaRubricColor(value);
+  return `<td style="text-align:center;font-weight:800;color:${color};">${display}</td>`;
+}
+
+function renderQA() {
+  if (!QA_ALL.length && !QA_CHAT_ALL.length) return;
+
+  const filtered = filterQAData();
+  const data = filtered.scored;
+  const chatData = filtered.chats;
+
   qaLastData = data;
 
   document.getElementById('qaNote').textContent =
-    `Rata-rata dihitung langsung dari kolom "Score /100" tiap baris CHAT_REVIEW (bukan dari tab DASHBOARD_SAR sheet), dan otomatis merata-ratakan seluruh minggu yang dipilih jika lebih dari satu week aktif. Tier: Excellent ≥85, Good ≥70, Needs Dev ≥50, Critical <50. ${data.length} review cocok dengan filter saat ini.`;
+    `Rata-rata skor dihitung dari "Score /100" pada CHAT_REVIEW. Chats Reviewed dihitung dari jumlah baris CHAT_REVIEW yang memiliki Nama SAR + Week. Semua angka mengikuti filter Bulan, Week, dan Branch. ${chatData.length} chats reviewed · ${data.length} scored reviews.`;
 
-  // Group per SAR — normalized key so spelling/casing/whitespace variants
-  // of the same name merge into one entry, same convention as SA Performance.
+  // Group scored reviews per SAR for score averages.
   const saMap = {};
   data.forEach(d => {
     const key = normName(d.sar);
-    if (!saMap[key]) saMap[key] = { key, name: d.sar, rows: [], branches: new Set() };
+    if (!saMap[key]) {
+      saMap[key] = {
+        key,
+        name: d.sar,
+        rows: [],
+        branches: new Set()
+      };
+    }
+
     saMap[key].rows.push(d);
-    saMap[key].branches.add(d.branch);
+    if (d.branch) saMap[key].branches.add(d.branch);
   });
+
+  // Count actual CHAT_REVIEW rows separately.
+  const chatCountMap = {};
+  chatData.forEach(d => {
+    const key = normName(d.sar);
+    if (!chatCountMap[key]) chatCountMap[key] = 0;
+    chatCountMap[key]++;
+  });
+
   const allSA = Object.values(saMap)
-    .map(sa => ({ ...sa, avg: qaAvg(sa.rows), count: sa.rows.length }))
+    .map(sa => ({
+      ...sa,
+      avg: qaAvg(sa.rows),
+      count: sa.rows.length,
+      chatCount: chatCountMap[sa.key] || 0,
+      rubricAvg: {
+        A1: averageQARubric(sa.rows, 'A1'),
+        A2: averageQARubric(sa.rows, 'A2'),
+        A3: averageQARubric(sa.rows, 'A3'),
+        A4: averageQARubric(sa.rows, 'A4'),
+        A5: averageQARubric(sa.rows, 'A5'),
+        A6: averageQARubric(sa.rows, 'A6')
+      }
+    }))
     .sort((a, b) => b.avg - a.avg);
+
+  // Include SARs that have chat rows but no completed score yet.
+  Object.keys(chatCountMap).forEach(key => {
+    if (saMap[key]) return;
+
+    const sample = chatData.find(d => normName(d.sar) === key);
+    if (!sample) return;
+
+    allSA.push({
+      key,
+      name: sample.sar,
+      rows: [],
+      avg: 0,
+      count: 0,
+      chatCount: chatCountMap[key],
+      branches: new Set(chatData.filter(d => normName(d.sar) === key && d.branch).map(d => d.branch)),
+      rubricAvg: { A1:null, A2:null, A3:null, A4:null, A5:null, A6:null }
+    });
+  });
+
+  allSA.sort((a, b) => {
+    if (b.avg !== a.avg) return b.avg - a.avg;
+    return b.chatCount - a.chatCount;
+  });
+
   qaLastSA = allSA;
 
   const tierDefs = [
     { cls: 'tier-top',      icon: '🏆', title: 'Excellent', badge: 'Skor ≥ 85',  filter: sa => sa.avg >= 85 },
     { cls: 'tier-good',     icon: '📈', title: 'Good',       badge: 'Skor 70–84', filter: sa => sa.avg >= 70 && sa.avg < 85 },
     { cls: 'tier-mid',      icon: '⚠️', title: 'Needs Dev',  badge: 'Skor 50–69', filter: sa => sa.avg >= 50 && sa.avg < 70 },
-    { cls: 'tier-critical', icon: '🚨', title: 'Critical',   badge: 'Skor < 50',  filter: sa => sa.avg < 50 },
+    { cls: 'tier-critical', icon: '🚨', title: 'Critical',   badge: 'Skor < 50',  filter: sa => sa.avg < 50 }
   ];
 
   const avatarColors = ['#0d9e5c','#2563eb','#e03131','#d97706','#7c3aed','#e8440c','#0891b2','#16a34a'];
+
   const qaCard = (sa, i) => {
     const color = avatarColors[i % avatarColors.length];
     const initials = sa.name.split(' ').map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
     const safeKey = sa.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
     return `<div class="sa-card">
       <div class="sa-avatar" style="background:${color};">${initials}</div>
-      <div class="sa-name">${sa.name}</div>
+      <div class="sa-name">${qaEscapeHtml(sa.name)}</div>
       <div class="sa-stats">
-        <div class="sa-row"><span>Total review</span><span>${sa.count}</span></div>
-        <div class="sa-row"><span>Rata-rata skor</span><span style="font-weight:800;color:${qaScoreColor(sa.avg)};">${sa.avg}</span></div>
-        <div class="sa-row"><span>Branch</span><span style="font-size:11px;color:var(--text2);">${[...sa.branches].join(', ')}</span></div>
+        <div class="sa-row"><span>Chats reviewed</span><span>${sa.chatCount}</span></div>
+        <div class="sa-row"><span>Scored reviews</span><span>${sa.count}</span></div>
+        <div class="sa-row"><span>Rata-rata skor</span><span style="font-weight:800;color:${qaScoreColor(sa.avg)};">${sa.count ? sa.avg : '—'}</span></div>
+        <div class="sa-row"><span>Branch</span><span style="font-size:11px;color:var(--text2);">${[...sa.branches].join(', ') || '—'}</span></div>
       </div>
       <button class="sa-detail-btn" onclick="event.stopPropagation();openQADetail('${safeKey}')">📊 Detail Review</button>
     </div>`;
   };
 
   document.getElementById('qaTiers').innerHTML = tierDefs.map(tier => {
-    const members = allSA.filter(tier.filter);
+    const members = allSA.filter(sa => sa.count > 0 && tier.filter(sa));
+
     return `<div class="tier-section ${tier.cls}">
       <div class="tier-header">
         <div class="tier-header-inner">
@@ -2343,16 +2519,24 @@ function renderQA() {
 
 function renderQALeaderboard(allSA) {
   const rows = [...allSA].sort((a, b) => b.avg - a.avg);
+
   document.getElementById('qaLeaderboardBody').innerHTML = rows.map((sa, i) => {
     const info = qaTierInfo(sa.avg);
     const safeKey = sa.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
     return `<tr onclick="openQADetail('${safeKey}')">
       <td class="muted">${i + 1}</td>
-      <td><strong>${sa.name}</strong></td>
-      <td class="muted">${[...sa.branches].join(', ')}</td>
-      <td>${sa.count}</td>
-      <td style="color:${qaScoreColor(sa.avg)};font-weight:800;">${sa.avg}</td>
-      <td><span class="pill ${info.pill}">${info.label}</span></td>
+      <td><strong>${qaEscapeHtml(sa.name)}</strong></td>
+      <td class="muted">${[...sa.branches].join(', ') || '—'}</td>
+      <td style="font-weight:800;">${sa.chatCount}</td>
+      ${qaCompactScoreCell(sa.rubricAvg.A1)}
+      ${qaCompactScoreCell(sa.rubricAvg.A2)}
+      ${qaCompactScoreCell(sa.rubricAvg.A3)}
+      ${qaCompactScoreCell(sa.rubricAvg.A4)}
+      ${qaCompactScoreCell(sa.rubricAvg.A5)}
+      ${qaCompactScoreCell(sa.rubricAvg.A6)}
+      <td style="color:${qaScoreColor(sa.avg)};font-weight:800;">${sa.count ? sa.avg : '—'}</td>
+      <td><span class="pill ${info.pill}">${sa.count ? info.label : 'No Score'}</span></td>
     </tr>`;
   }).join('');
 }
