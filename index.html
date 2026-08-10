@@ -919,22 +919,27 @@ function processQARows(rows) {
     const scoreRaw = col(row, 'score /100');
     const score = parseFloat(scoreRaw);
     if (!scoreRaw || isNaN(score)) continue;
-    QA_ALL.push({
-      sar,
-      branch:   col(row, 'center'),
-      month:    col(row, 'month'),
-      week:     col(row, 'week'),
-      date:     col(row, 'tgl data sample'),
-      reviewer: col(row, 'reviewer'),
-      scenario: col(row, 'tipe scenario'),
-      score,
-      tier:     col(row, 'tier'),
-      notes:    col(row, 'kutipan & catatan review'),
-    });
-  }
-  console.log(`QA Chat Review loaded: ${QA_ALL.length} scored rows`);
-}
+   QA_ALL.push({
+  sar,
+  branch:   col(row, 'center'),
+  month:    col(row, 'month'),
+  week:     col(row, 'week'),
+  date:     col(row, 'tgl data sample'),
+  reviewer: col(row, 'reviewer'),
+  scenario: col(row, 'tipe scenario'),
+  score,
+  tier:     col(row, 'tier'),
+  notes:    col(row, 'kutipan & catatan review'),
 
+  // Individual scoring rubric from CHAT_REVIEW columns L:Q
+  rubrics: row.slice(11, 17).map((value, index) => ({
+    label: rows[headerRowIdx][11 + index] || `Rubric ${index + 1}`,
+    value: (value || '').trim()
+  })),
+
+  // Raw score if available
+  rawScore: col(row, 'raw score /36')
+});
 // =====================================================================
 // COMPUTE SA ELIGIBILITY
 // Rules:
@@ -2277,14 +2282,248 @@ function setQAView(view) {
 function openQADetail(key) {
   const sa = qaLastSA.find(s => s.key === key);
   if (!sa) return;
+
   const info = qaTierInfo(sa.avg);
-  const rows = [...sa.rows].sort((a, b) => weekSortKey(b.week) - weekSortKey(a.week) || (b.date || '').localeCompare(a.date || ''));
-  const rowsHtml = rows.map(d =>
-    `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
-      <span>${[d.week, d.scenario, d.reviewer].filter(Boolean).join(' · ') || '—'}</span>
-      <strong style="color:${qaScoreColor(d.score)};">${d.score}</strong>
-    </div>`
-  ).join('');
+
+  const rows = [...sa.rows].sort(
+    (a, b) =>
+      weekSortKey(b.week) - weekSortKey(a.week) ||
+      (b.date || '').localeCompare(a.date || '')
+  );
+
+  // ------------------------------------------------------------
+  // Build expandable review history
+  // ------------------------------------------------------------
+  const rowsHtml = rows.map((d, index) => {
+
+    const rubricHtml = (d.rubrics || [])
+      .map(r => {
+        const value = r.value || '—';
+
+        return `
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            padding:8px 0;
+            border-bottom:1px solid var(--border);
+          ">
+            <span style="color:var(--text2);">
+              ${r.label}
+            </span>
+
+            <strong style="
+              font-size:15px;
+              min-width:35px;
+              text-align:right;
+            ">
+              ${value}
+            </strong>
+          </div>
+        `;
+      })
+      .join('');
+
+    return `
+      <details
+        style="
+          border-bottom:1px solid var(--border);
+          padding:0;
+        "
+        ${index === 0 ? '' : ''}
+      >
+
+        <summary style="
+          cursor:pointer;
+          list-style:none;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:10px;
+          padding:12px 4px;
+          font-weight:600;
+        ">
+
+          <span>
+            ${[d.week, d.scenario, d.reviewer]
+              .filter(Boolean)
+              .join(' · ') || '—'}
+          </span>
+
+          <strong style="
+            color:${qaScoreColor(d.score)};
+            font-size:16px;
+          ">
+            ${d.score}
+          </strong>
+
+        </summary>
+
+        <div style="
+          padding:4px 10px 14px 10px;
+          background:rgba(0,0,0,0.015);
+          border-radius:8px;
+        ">
+
+          <!-- RUBRIC SCORES -->
+          <div style="
+            font-size:11px;
+            font-weight:700;
+            color:var(--text2);
+            text-transform:uppercase;
+            margin:8px 0 4px;
+          ">
+            Detail Scoring
+          </div>
+
+          ${rubricHtml || '<div style="padding:8px 0;color:var(--text2);">Tidak ada detail scoring.</div>'}
+
+          <!-- SCORE SUMMARY -->
+          <div style="
+            margin-top:12px;
+            padding-top:10px;
+            border-top:1px solid var(--border);
+          ">
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              padding:5px 0;
+            ">
+              <span style="color:var(--text2);">
+                Raw Score
+              </span>
+
+              <strong>
+                ${d.rawScore || '—'}
+              </strong>
+            </div>
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              padding:5px 0;
+            ">
+              <span style="color:var(--text2);">
+                Score /100
+              </span>
+
+              <strong style="
+                color:${qaScoreColor(d.score)};
+                font-size:17px;
+              ">
+                ${d.score}
+              </strong>
+            </div>
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              padding:5px 0;
+            ">
+              <span style="color:var(--text2);">
+                Tier
+              </span>
+
+              <span class="pill ${qaTierInfo(d.score).pill}">
+                ${qaTierInfo(d.score).label}
+              </span>
+            </div>
+
+          </div>
+
+          <!-- REVIEW NOTES -->
+          ${d.notes ? `
+            <div style="
+              margin-top:12px;
+              padding-top:10px;
+              border-top:1px solid var(--border);
+            ">
+
+              <div style="
+                font-size:11px;
+                font-weight:700;
+                color:var(--text2);
+                text-transform:uppercase;
+                margin-bottom:5px;
+              ">
+                Kutipan & Catatan Review
+              </div>
+
+              <div style="
+                line-height:1.5;
+                white-space:pre-wrap;
+              ">
+                ${d.notes}
+              </div>
+
+            </div>
+          ` : ''}
+
+        </div>
+
+      </details>
+    `;
+  }).join('');
+
+  // ------------------------------------------------------------
+  // Modal
+  // ------------------------------------------------------------
+  document.getElementById('mTitle').textContent =
+    `QA Detail — ${sa.name}`;
+
+  document.getElementById('mBody').innerHTML = `
+
+    <div class="m-grid">
+
+      <div class="m-stat">
+        <div class="m-stat-l">Total Review</div>
+        <div class="m-stat-v">${sa.count}</div>
+      </div>
+
+      <div class="m-stat">
+        <div class="m-stat-l">Rata-rata Skor</div>
+        <div
+          class="m-stat-v"
+          style="color:${qaScoreColor(sa.avg)};"
+        >
+          ${sa.avg}
+        </div>
+      </div>
+
+      <div class="m-stat">
+        <div class="m-stat-l">Tier</div>
+        <div class="m-stat-v">
+          <span class="pill ${info.pill}">
+            ${info.label}
+          </span>
+        </div>
+      </div>
+
+      <div class="m-stat">
+        <div class="m-stat-l">Branch</div>
+        <div class="m-stat-v">
+          ${[...sa.branches].join(', ') || '—'}
+        </div>
+      </div>
+
+    </div>
+
+    <div class="m-sec">
+
+      <div class="m-sec-t">
+        Riwayat Review (${rows.length})
+      </div>
+
+      <div class="m-sec-b" style="padding:0 10px;">
+        ${rowsHtml || '—'}
+      </div>
+
+    </div>
+  `;
+
+  document.getElementById('overlay').classList.add('open');
+}
 
   document.getElementById('mTitle').textContent = `QA Detail — ${sa.name}`;
   document.getElementById('mBody').innerHTML = `
