@@ -2332,15 +2332,308 @@ function qaRubricColor(score) {
 function openQADetail(key) {
   const sa = qaLastSA.find(s => s.key === key);
   if (!sa) return;
+
   const info = qaTierInfo(sa.avg);
-  const rows = [...sa.rows].sort((a, b) => weekSortKey(b.week) - weekSortKey(a.week) || (b.date || '').localeCompare(a.date || ''));
+
+  const rows = [...sa.rows].sort(
+    (a, b) =>
+      weekSortKey(b.week) - weekSortKey(a.week) ||
+      (b.date || '').localeCompare(a.date || '')
+  );
 
   const weekHtml = rows.map((d, i) => {
+
+    // Build rubric rows
     const rubricRows = QA_RUBRIC_FIELDS.map(([fKey, label]) => {
       const value = d.rubric ? d.rubric[fKey] : null;
-      const display = (value === null || value === undefined || isNaN(value)) ? '—' : value;
-      return `<div class="qa-rubric-row"><span class="qa-rubric-name">${label}</span><strong class="qa-rubric-score" style="color:${qaRubricColor(value)};">${display}</strong></div>`;
+
+      const display =
+        value === null ||
+        value === undefined ||
+        isNaN(value)
+          ? '—'
+          : value;
+
+      return `
+        <div style="
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          padding:8px 0;
+          border-bottom:1px solid var(--border);
+          font-size:12px;
+        ">
+          <span style="color:var(--text2);">
+            ${label}
+          </span>
+
+          <strong style="
+            min-width:30px;
+            text-align:center;
+            font-size:13px;
+            color:${qaRubricColor(value)};
+          ">
+            ${display}
+          </strong>
+        </div>
+      `;
     }).join('');
+
+    // Calculate rubric total
+    const rubricValues = QA_RUBRIC_FIELDS
+      .map(([fKey]) =>
+        d.rubric ? d.rubric[fKey] : null
+      )
+      .filter(v =>
+        v !== null &&
+        v !== undefined &&
+        !isNaN(v)
+      );
+
+    const rubricTotal = rubricValues.reduce(
+      (sum, v) => sum + v,
+      0
+    );
+
+    const rubricMax = rubricValues.length * 4;
+
+    const notesHtml = d.notes
+      ? `
+        <div style="
+          margin-top:10px;
+          padding:10px;
+          background:var(--surface);
+          border-radius:8px;
+          font-size:11px;
+          color:var(--text2);
+          line-height:1.5;
+        ">
+          <strong>Catatan:</strong><br>
+          ${d.notes}
+        </div>
+      `
+      : '';
+
+    return `
+      <div style="
+        border:1px solid var(--border);
+        border-radius:10px;
+        background:var(--surface2);
+        margin-bottom:8px;
+        overflow:hidden;
+      ">
+
+        <!-- WEEK HEADER -->
+        <button
+          type="button"
+          onclick="toggleQAWeek(this)"
+          style="
+            width:100%;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:10px;
+            padding:11px 13px;
+            background:transparent;
+            border:none;
+            cursor:pointer;
+            color:var(--text);
+            text-align:left;
+          "
+        >
+
+          <span>
+            <strong style="font-size:13px;">
+              ${d.week || 'Week —'}
+            </strong>
+
+            ${
+              d.reviewer
+                ? `
+                  <span style="
+                    font-size:11px;
+                    color:var(--text3);
+                  ">
+                    · ${d.reviewer}
+                  </span>
+                `
+                : ''
+            }
+          </span>
+
+          <span style="
+            display:flex;
+            align-items:center;
+            gap:10px;
+          ">
+            <strong style="
+              font-size:14px;
+              color:${qaScoreColor(d.score)};
+            ">
+              ${d.score}
+            </strong>
+
+            <span class="qa-week-arrow">
+              ▲
+            </span>
+          </span>
+
+        </button>
+
+        <!-- WEEK BODY -->
+        <div
+          class="qa-week-body"
+          style="
+            display:${i === 0 ? 'block' : 'none'} !important;
+            padding:0 13px 13px;
+          "
+        >
+
+          ${
+            d.scenario
+              ? `
+                <div style="
+                  font-size:11px;
+                  color:var(--text3);
+                  margin-bottom:8px;
+                ">
+                  Scenario: ${d.scenario}
+                </div>
+              `
+              : ''
+          }
+
+          ${rubricRows}
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            margin-top:10px;
+            padding-top:9px;
+            border-top:1px solid var(--border);
+            font-size:11px;
+            color:var(--text2);
+          ">
+            <span>Rubric Total</span>
+            <strong>${rubricTotal} / ${rubricMax}</strong>
+          </div>
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            margin-top:10px;
+            font-size:11px;
+            color:var(--text2);
+          ">
+            <span>Score /100</span>
+            <strong style="color:${qaScoreColor(d.score)};">
+              ${d.score}
+            </strong>
+          </div>
+
+          ${notesHtml}
+
+        </div>
+
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('mTitle').textContent =
+    `QA Detail — ${sa.name}`;
+
+  document.getElementById('mBody').innerHTML = `
+    <div class="m-grid">
+
+      <div class="m-stat">
+        <div class="m-stat-l">Total Review</div>
+        <div class="m-stat-v">${sa.count}</div>
+      </div>
+
+      <div class="m-stat">
+        <div class="m-stat-l">Rata-rata Skor</div>
+        <div
+          class="m-stat-v"
+          style="color:${qaScoreColor(sa.avg)};"
+        >
+          ${sa.avg}
+        </div>
+      </div>
+
+      <div class="m-stat">
+        <div class="m-stat-l">Tier</div>
+        <div class="m-stat-v">
+          <span class="pill ${info.pill}">
+            ${info.label}
+          </span>
+        </div>
+      </div>
+
+      <div class="m-stat">
+        <div class="m-stat-l">Branch</div>
+        <div class="m-stat-v">
+          ${[...sa.branches].join(', ') || '—'}
+        </div>
+      </div>
+
+    </div>
+
+    <div class="m-sec">
+      <div class="m-sec-t">
+        Detail Score per Week
+      </div>
+
+      <div>
+        ${
+          weekHtml ||
+          '<div style="padding:10px;color:var(--text3);">Tidak ada review.</div>'
+        }
+      </div>
+    </div>
+  `;
+
+  document.getElementById('overlay').classList.add('open');
+}
+
+
+function toggleQAWeek(button) {
+  const body = button.nextElementSibling;
+
+  if (!body) return;
+
+  const isOpen = body.style.display !== 'none';
+
+  body.style.setProperty(
+    'display',
+    isOpen ? 'none' : 'block',
+    'important'
+  );
+
+  const arrow = button.querySelector('.qa-week-arrow');
+
+  if (arrow) {
+    arrow.textContent = isOpen ? '▼' : '▲';
+  }
+}
+  function toggleQAWeek(button) {
+  const body = button.nextElementSibling;
+
+  if (!body) return;
+
+  const isOpen = body.style.display !== 'none';
+
+  body.style.setProperty(
+    'display',
+    isOpen ? 'none' : 'block',
+    'important'
+  );
+
+  const arrow = button.querySelector('.qa-week-arrow');
+
+  if (arrow) {
+    arrow.textContent = isOpen ? '▼' : '▲';
+  }
+}
 
     const rubricValues = QA_RUBRIC_FIELDS.map(([fKey]) => d.rubric ? d.rubric[fKey] : null).filter(v => v !== null && v !== undefined && !isNaN(v));
     const rubricTotal = rubricValues.reduce((sum, v) => sum + v, 0);
