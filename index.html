@@ -160,8 +160,14 @@ td.muted{color:var(--text2);}
 .qa-week-score{font-size:14px;font-weight:800;}
 .qa-week-arrow{font-size:11px;color:var(--text3);transition:transform .15s;}
 .qa-week.open .qa-week-arrow{transform:rotate(180deg);}
-.qa-week-body{display:none;padding:0 13px 13px;}
-.qa-week.open .qa-week-body{display:block;}
+.qa-week-body{
+  display:none !important;
+  padding:0 13px 13px;
+}
+
+.qa-week.open .qa-week-body{
+  display:block !important;
+}
 .qa-rubric-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);}
 .qa-rubric-name{font-size:12px;color:var(--text2);}
 .qa-rubric-score{min-width:28px;text-align:center;font-size:12px;font-weight:800;}
