@@ -168,6 +168,7 @@ td.muted{color:var(--text2);}
 .tier-mid .tier-header{background:#d97706;}
 .tier-low .tier-header{background:#f97316;}
 .tier-critical .tier-header{background:#e03131;}
+.tier-good .tier-header{background:#2563eb;}
 .tier-empty{font-size:13px;color:var(--text3);padding:8px 0;}
 .sa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
 .sa-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh);transition:transform .2s,box-shadow .2s;}
@@ -418,17 +419,39 @@ td.muted{color:var(--text2);}
   <div class="ph">
     <div class="ph-left">
       <div class="ph-title">QA Performance</div>
-      <div class="ph-sub">Rata-rata skor QA chat review per SAR & per branch</div>
+      <div class="ph-sub">Rata-rata skor QA chat review per SAR</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;background:var(--surface2);border-radius:10px;padding:3px;">
+        <button class="top-tab active" id="qaViewTiersBtn" onclick="setQAView('tiers')" style="padding:6px 14px;">Tiers</button>
+        <button class="top-tab" id="qaViewLeaderboardBtn" onclick="setQAView('leaderboard')" style="padding:6px 14px;">Leaderboard</button>
+      </div>
       <div class="ms-wrap" id="qMonthMS"></div>
       <div class="ms-wrap" id="qWeekMS"></div>
       <div class="ms-wrap" id="qBranchMS"></div>
     </div>
   </div>
   <div id="qaNote" class="sa-note"></div>
-  <div class="mg" id="qaMetricsGrid" style="margin-bottom:24px;"></div>
-  <div class="sa-grid" id="qaGrid"></div>
+  <div id="qaTiers"></div>
+  <div id="qaLeaderboardWrap" style="display:none;">
+    <div class="cc">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nama</th>
+              <th>Center</th>
+              <th>Total Review</th>
+              <th>Rata-rata Skor</th>
+              <th>Tier</th>
+            </tr>
+          </thead>
+          <tbody id="qaLeaderboardBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL -->
@@ -542,6 +565,7 @@ let centerPaidData = [];
 let QA_ALL = [];       // all scored QA review rows
 let qaLoaded = false;
 let qaLastData = [];   // filtered rows behind the current QA page render (for the detail modal)
+let qaLastSA = [];      // per-SAR aggregates (name, rows, avg, branches) behind the current QA page render
 
 // =====================================================================
 // DATE HELPERS
@@ -2081,8 +2105,8 @@ function renderCenterPerf() {
         <div class="sa-row"><span>Retained</span><span style="color:var(--green);">${c.paid}</span></div>
         <div class="sa-row"><span>Not Retained</span><span style="color:var(--red);">${c.churned}</span></div>
         <div class="sa-row"><span>Undecided</span><span style="color:var(--amber);">${c.unsure}</span></div>
-        <div class="sa-row"><span>Confirmed to Retain (belum bayar)</span><span style="color:var(--blue);">${c.confirmRetain}</span></div>
-        <div class="sa-row"><span>Confirmed to Churn (masih bisa diretensi)</span><span style="color:var(--purple);">${c.confirmChurn}</span></div>
+        <div class="sa-row"><span>Confirmed to Retain</span><span style="color:var(--blue);">${c.confirmRetain}</span></div>
+        <div class="sa-row"><span>Confirmed to Churn</span><span style="color:var(--purple);">${c.confirmChurn}</span></div>
       </div>
       <button class="sa-detail-btn" onclick="event.stopPropagation();openCenterDetail('${c.branch}')">📊 Lihat Detail</button>
     </div>`;
@@ -2127,11 +2151,17 @@ function openCenterDetail(branch) {
 // QA PERFORMANCE PAGE
 // Averages are computed here from CHAT_REVIEW's own per-row "Score /100"
 // (see processQARows) — independent of the workbook's DASHBOARD_SAR tab.
+// Grouped into tiers by average score (Excellent/Good/Needs Dev/Critical),
+// same Tiers/Leaderboard dual view as the SA Performance page.
 // =====================================================================
-const QA_TIER_COLORS = { 'excellent': '#0d9e5c', 'good': '#2563eb', 'needs dev': '#d97706', 'critical': '#e03131', 'poor': '#e03131' };
-const qaTierColor = tier => QA_TIER_COLORS[(tier || '').toLowerCase()] || '#9ba3bd';
-const qaScoreColor = score => score >= 85 ? 'var(--green)' : score >= 70 ? 'var(--amber)' : 'var(--red)';
 const qaAvg = rows => rows.length ? Math.round(rows.reduce((s, d) => s + d.score, 0) / rows.length) : 0;
+const qaScoreColor = score => score >= 85 ? 'var(--green)' : score >= 70 ? 'var(--blue)' : score >= 50 ? 'var(--amber)' : 'var(--red)';
+function qaTierInfo(score) {
+  if (score >= 85) return { label: 'Excellent', pill: 'pill-green' };
+  if (score >= 70) return { label: 'Good',       pill: 'pill-blue' };
+  if (score >= 50) return { label: 'Needs Dev',  pill: 'pill-amber' };
+  return { label: 'Critical', pill: 'pill-red' };
+}
 
 function populateQAFilters() {
   const months   = [...new Set(QA_ALL.map(d => d.month).filter(Boolean))].sort();
@@ -2160,78 +2190,111 @@ function renderQA() {
   qaLastData = data;
 
   document.getElementById('qaNote').textContent =
-    `Rata-rata dihitung langsung dari kolom "Score /100" tiap baris CHAT_REVIEW (bukan dari tab DASHBOARD_SAR sheet), dan otomatis merata-ratakan seluruh minggu yang dipilih jika lebih dari satu week aktif. ${data.length} review cocok dengan filter saat ini. Klik "Lihat Detail" untuk breakdown per SAR.`;
+    `Rata-rata dihitung langsung dari kolom "Score /100" tiap baris CHAT_REVIEW (bukan dari tab DASHBOARD_SAR sheet), dan otomatis merata-ratakan seluruh minggu yang dipilih jika lebih dari satu week aktif. Tier: Excellent ≥85, Good ≥70, Needs Dev ≥50, Critical <50. ${data.length} review cocok dengan filter saat ini.`;
 
-  const excellentCount = data.filter(d => (d.tier || '').toLowerCase() === 'excellent').length;
-  const needsDevCount  = data.filter(d => (d.tier || '').toLowerCase() === 'needs dev').length;
-  const sarCount = new Set(data.map(d => d.sar)).size;
-  document.getElementById('qaMetricsGrid').innerHTML = `
-    <div class="mc c-blue fade-in"><div class="mc-icon">📝</div><div class="mc-val">${data.length}</div><div class="mc-label">Total Review</div></div>
-    <div class="mc c-green fade-in"><div class="mc-icon">⭐</div><div class="mc-val">${qaAvg(data)}</div><div class="mc-label">Rata-rata Skor</div><div class="mc-sub">dari /100</div></div>
-    <div class="mc c-purple fade-in"><div class="mc-icon">👤</div><div class="mc-val">${sarCount}</div><div class="mc-label">SAR Direview</div></div>
-    <div class="mc c-green fade-in"><div class="mc-icon">🏆</div><div class="mc-val">${excellentCount}</div><div class="mc-label">Excellent</div></div>
-    <div class="mc c-amber fade-in"><div class="mc-icon">⚠️</div><div class="mc-val">${needsDevCount}</div><div class="mc-label">Needs Dev</div></div>`;
-
-  const branchMap = {};
+  // Group per SAR — normalized key so spelling/casing/whitespace variants
+  // of the same name merge into one entry, same convention as SA Performance.
+  const saMap = {};
   data.forEach(d => {
-    if (!branchMap[d.branch]) branchMap[d.branch] = { branch: d.branch, rows: [], sars: {} };
-    const b = branchMap[d.branch];
-    b.rows.push(d);
-    (b.sars[d.sar] = b.sars[d.sar] || []).push(d);
+    const key = normName(d.sar);
+    if (!saMap[key]) saMap[key] = { key, name: d.sar, rows: [], branches: new Set() };
+    saMap[key].rows.push(d);
+    saMap[key].branches.add(d.branch);
   });
+  const allSA = Object.values(saMap)
+    .map(sa => ({ ...sa, avg: qaAvg(sa.rows), count: sa.rows.length }))
+    .sort((a, b) => b.avg - a.avg);
+  qaLastSA = allSA;
 
-  const branches = Object.values(branchMap).map(b => ({ ...b, avg: qaAvg(b.rows) })).sort((a, b) => b.avg - a.avg);
+  const tierDefs = [
+    { cls: 'tier-top',      icon: '🏆', title: 'Excellent', badge: 'Skor ≥ 85',  filter: sa => sa.avg >= 85 },
+    { cls: 'tier-good',     icon: '📈', title: 'Good',       badge: 'Skor 70–84', filter: sa => sa.avg >= 70 && sa.avg < 85 },
+    { cls: 'tier-mid',      icon: '⚠️', title: 'Needs Dev',  badge: 'Skor 50–69', filter: sa => sa.avg >= 50 && sa.avg < 70 },
+    { cls: 'tier-critical', icon: '🚨', title: 'Critical',   badge: 'Skor < 50',  filter: sa => sa.avg < 50 },
+  ];
 
-  document.getElementById('qaGrid').innerHTML = branches.map(b => {
-    const sarAverages = Object.entries(b.sars)
-      .map(([name, rows]) => ({ name, avg: qaAvg(rows), count: rows.length }))
-      .sort((x, y) => y.avg - x.avg);
+  const avatarColors = ['#0d9e5c','#2563eb','#e03131','#d97706','#7c3aed','#e8440c','#0891b2','#16a34a'];
+  const qaCard = (sa, i) => {
+    const color = avatarColors[i % avatarColors.length];
+    const initials = sa.name.split(' ').map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
+    const safeKey = sa.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     return `<div class="sa-card">
-      <div class="sa-name" style="font-size:16px;">${BRANCH_NAMES[b.branch] || b.branch} <span style="font-size:11px;color:var(--text3);font-weight:600;">(${b.branch})</span></div>
-      <div style="display:flex;align-items:center;gap:14px;margin:10px 0;">
-        <div style="width:70px;height:70px;flex-shrink:0;"><canvas id="qaChart_${b.branch}"></canvas></div>
-        <div>
-          <div style="font-size:26px;font-weight:800;color:${qaScoreColor(b.avg)};font-family:'DM Sans',sans-serif;">${b.avg}</div>
-          <div style="font-size:11px;color:var(--text3);">${b.rows.length} review</div>
+      <div class="sa-avatar" style="background:${color};">${initials}</div>
+      <div class="sa-name">${sa.name}</div>
+      <div class="sa-stats">
+        <div class="sa-row"><span>Total review</span><span>${sa.count}</span></div>
+        <div class="sa-row"><span>Rata-rata skor</span><span style="font-weight:800;color:${qaScoreColor(sa.avg)};">${sa.avg}</span></div>
+        <div class="sa-row"><span>Branch</span><span style="font-size:11px;color:var(--text2);">${[...sa.branches].join(', ')}</span></div>
+      </div>
+      <button class="sa-detail-btn" onclick="event.stopPropagation();openQADetail('${safeKey}')">📊 Detail Review</button>
+    </div>`;
+  };
+
+  document.getElementById('qaTiers').innerHTML = tierDefs.map(tier => {
+    const members = allSA.filter(tier.filter);
+    return `<div class="tier-section ${tier.cls}">
+      <div class="tier-header">
+        <div class="tier-header-inner">
+          <span class="tier-icon">${tier.icon}</span>
+          <span class="tier-title">${tier.title}</span>
         </div>
+        <span class="tier-badge">${tier.badge} · ${members.length} SAR</span>
       </div>
-      <div style="margin:8px 0 12px;">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px;">Rata-rata per SAR</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">${sarAverages.map(s => `<span class="pill ${s.avg >= 85 ? 'pill-green' : s.avg >= 70 ? 'pill-amber' : 'pill-red'}">${s.name}: ${s.avg}</span>`).join('') || '<span class="pill pill-gray">—</span>'}</div>
+      <div class="tier-body">
+        ${members.length
+          ? `<div class="sa-grid">${members.map((sa, i) => qaCard(sa, i)).join('')}</div>`
+          : `<div class="tier-empty">Tidak ada SAR di tier ini untuk periode ini.</div>`}
       </div>
-      <button class="sa-detail-btn" onclick="event.stopPropagation();openQADetail('${b.branch}')">📊 Lihat Detail</button>
     </div>`;
   }).join('');
 
-  branches.forEach(b => {
-    const tierCounts = {};
-    b.rows.forEach(d => { const t = d.tier || 'Belum Dinilai'; tierCounts[t] = (tierCounts[t] || 0) + 1; });
-    const labels = Object.keys(tierCounts);
-    mkChart(`qaChart_${b.branch}`, 'doughnut', labels,
-      [{ data: labels.map(l => tierCounts[l]), backgroundColor: labels.map(qaTierColor), borderWidth: 0, hoverOffset: 3 }],
-      { cutout: '60%', plugins: { legend: { display: false } } });
-  });
+  renderQALeaderboard(allSA);
 }
 
-function openQADetail(branch) {
-  const rows = qaLastData.filter(d => d.branch === branch);
-  const sarMap = {};
-  rows.forEach(d => (sarMap[d.sar] = sarMap[d.sar] || []).push(d));
-  const sarRows = Object.entries(sarMap)
-    .map(([name, rs]) => ({ name, count: rs.length, avg: qaAvg(rs) }))
-    .sort((a, b) => b.avg - a.avg);
+function renderQALeaderboard(allSA) {
+  const rows = [...allSA].sort((a, b) => b.avg - a.avg);
+  document.getElementById('qaLeaderboardBody').innerHTML = rows.map((sa, i) => {
+    const info = qaTierInfo(sa.avg);
+    const safeKey = sa.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<tr onclick="openQADetail('${safeKey}')">
+      <td class="muted">${i + 1}</td>
+      <td><strong>${sa.name}</strong></td>
+      <td class="muted">${[...sa.branches].join(', ')}</td>
+      <td>${sa.count}</td>
+      <td style="color:${qaScoreColor(sa.avg)};font-weight:800;">${sa.avg}</td>
+      <td><span class="pill ${info.pill}">${info.label}</span></td>
+    </tr>`;
+  }).join('');
+}
 
-  const bodyRows = sarRows.map(s =>
-    `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><span>${s.name} (${s.count} review)</span><strong style="color:${qaScoreColor(s.avg)};">${s.avg}</strong></div>`
+function setQAView(view) {
+  document.getElementById('qaTiers').style.display = view === 'tiers' ? 'block' : 'none';
+  document.getElementById('qaLeaderboardWrap').style.display = view === 'leaderboard' ? 'block' : 'none';
+  document.getElementById('qaViewTiersBtn').classList.toggle('active', view === 'tiers');
+  document.getElementById('qaViewLeaderboardBtn').classList.toggle('active', view === 'leaderboard');
+}
+
+function openQADetail(key) {
+  const sa = qaLastSA.find(s => s.key === key);
+  if (!sa) return;
+  const info = qaTierInfo(sa.avg);
+  const rows = [...sa.rows].sort((a, b) => (b.week || '').localeCompare(a.week || '') || (b.date || '').localeCompare(a.date || ''));
+  const rowsHtml = rows.map(d =>
+    `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+      <span>${[d.week, d.scenario, d.reviewer].filter(Boolean).join(' · ') || '—'}</span>
+      <strong style="color:${qaScoreColor(d.score)};">${d.score}</strong>
+    </div>`
   ).join('');
 
-  document.getElementById('mTitle').textContent = `QA Detail — ${BRANCH_NAMES[branch] || branch} (${branch})`;
+  document.getElementById('mTitle').textContent = `QA Detail — ${sa.name}`;
   document.getElementById('mBody').innerHTML = `
     <div class="m-grid">
-      <div class="m-stat"><div class="m-stat-l">Total Review</div><div class="m-stat-v">${rows.length}</div></div>
-      <div class="m-stat"><div class="m-stat-l">Rata-rata Skor</div><div class="m-stat-v">${qaAvg(rows)}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Total Review</div><div class="m-stat-v">${sa.count}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Rata-rata Skor</div><div class="m-stat-v" style="color:${qaScoreColor(sa.avg)};">${sa.avg}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Tier</div><div class="m-stat-v"><span class="pill ${info.pill}">${info.label}</span></div></div>
+      <div class="m-stat"><div class="m-stat-l">Branch</div><div class="m-stat-v">${[...sa.branches].join(', ') || '—'}</div></div>
     </div>
-    <div class="m-sec"><div class="m-sec-t">Rata-rata per SAR (${sarRows.length})</div><div class="m-sec-b">${bodyRows || '—'}</div></div>`;
+    <div class="m-sec"><div class="m-sec-t">Riwayat Review (${rows.length})</div><div class="m-sec-b">${rowsHtml || '—'}</div></div>`;
   document.getElementById('overlay').classList.add('open');
 }
 
