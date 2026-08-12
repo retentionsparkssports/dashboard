@@ -1,0 +1,3014 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sparks Sports — Retention Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Sans:wght@700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+  --bg:#f0f2f7;--surface:#ffffff;--surface2:#f5f6fa;--surface3:#eceef5;--border:rgba(0,0,0,0.06);
+  --text:#0f1117;--text2:#5a6079;--text3:#9ba3bd;
+  --accent:#0d9e5c;--accent-bg:#edfbf4;--accent2:#10b96a;
+  --green:#0d9e5c;--green-bg:#edfbf4;--green-dark:#086e3f;
+  --amber:#d97706;--amber-bg:#fffbeb;
+  --red:#e03131;--red-bg:#fff0f0;
+  --blue:#2563eb;--blue-bg:#eff6ff;--blue-dark:#1d4ed8;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;
+  --r:16px;--rs:10px;
+  --sh:0 1px 2px rgba(0,0,0,0.04),0 4px 20px rgba(0,0,0,0.06);
+  --sh2:0 4px 12px rgba(0,0,0,0.08),0 16px 40px rgba(0,0,0,0.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;}
+.topbar{position:sticky;top:0;z-index:200;background:rgba(255,255,255,0.95);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);height:62px;padding:0 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 0 var(--border);}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-name{font-family:'DM Sans',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.4px;}
+.brand-name span{color:var(--accent);}
+.topbar-right{display:flex;align-items:center;gap:6px;}
+.top-tab{font-size:13px;font-weight:600;padding:7px 16px;border-radius:10px;border:none;background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;}
+.top-tab:hover{background:var(--surface2);color:var(--text);}
+.top-tab.active{background:var(--accent-bg);color:var(--accent);}
+.loading-bar{height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .3s;position:fixed;top:62px;left:0;z-index:300;}
+.page{display:none;padding:32px;max-width:1360px;margin:0 auto;}
+.page.active{display:block;}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
+.ph-title{font-family:'DM Sans',sans-serif;font-size:28px;font-weight:800;letter-spacing:-.5px;}
+.ph-sub{font-size:13px;color:var(--text2);margin-top:4px;}
+.upload-zone{border:2px dashed var(--border);border-radius:var(--r);padding:56px 32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-bg);}
+.upload-icon{font-size:44px;margin-bottom:14px;}
+.upload-title{font-family:'DM Sans',sans-serif;font-size:20px;font-weight:700;margin-bottom:8px;}
+.upload-sub{font-size:13px;color:var(--text2);}
+.upload-btn{margin-top:18px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;padding:11px 26px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:10px;cursor:pointer;transition:opacity .15s;}
+.upload-btn:hover{opacity:.88;}
+#fileInput{display:none;}
+.filter-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 20px;margin-bottom:24px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;box-shadow:var(--sh);}
+.fl{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;}
+select,input[type=text]{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;color:var(--text);background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--rs);padding:7px 30px 7px 12px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ba3bd' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;transition:all .15s;}
+input[type=text]{background-image:none;padding:7px 12px;}
+select:focus,input:focus{outline:none;border-color:var(--accent);background:#fff;}
+.fd{width:1px;height:20px;background:var(--border);}
+.reset-btn{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:700;color:var(--accent);background:none;border:1.5px solid var(--accent-bg);cursor:pointer;padding:6px 14px;border-radius:8px;transition:all .15s;}
+.reset-btn:hover{background:var(--accent-bg);}
+/* MULTI-SELECT */
+.ms-wrap{position:relative;}
+.ms-btn{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;color:var(--text);background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--rs);padding:7px 30px 7px 12px;cursor:pointer;white-space:nowrap;position:relative;min-width:130px;text-align:left;display:block;}
+.ms-btn::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text3);}
+.ms-btn:hover{border-color:var(--text3);}
+.ms-panel{position:absolute;top:calc(100% + 6px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--sh2);padding:8px;z-index:999;min-width:200px;max-height:300px;overflow-y:auto;}
+.ms-opt{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--text);padding:6px 8px;border-radius:6px;cursor:pointer;}
+.ms-opt:hover{background:var(--surface2);}
+.ms-opt input{cursor:pointer;}
+.ms-actions{display:flex;justify-content:space-between;padding:6px 8px 2px;border-top:1px solid var(--border);margin-top:4px;}
+.ms-actions button{font-size:11px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 6px;}
+.ms-actions button:hover{text-decoration:underline;}
+/* TOGGLE */
+.toggle-wrap{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;}
+.toggle-switch{position:relative;width:36px;height:20px;background:var(--surface3);border-radius:20px;cursor:pointer;transition:background .15s;flex-shrink:0;}
+.toggle-switch.on{background:var(--accent);}
+.toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,0.2);}
+.toggle-switch.on::after{left:18px;}
+/* METRICS */
+.mg{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px;}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;box-shadow:var(--sh);position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;}
+.mc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;}
+.mc.c-red::after{background:linear-gradient(90deg,var(--red),#ff6b6b);}
+.mc.c-green::after{background:linear-gradient(90deg,var(--green),#34d399);}
+.mc.c-blue::after{background:linear-gradient(90deg,var(--blue),#60a5fa);}
+.mc.c-amber::after{background:linear-gradient(90deg,var(--amber),#fbbf24);}
+.mc.c-purple::after{background:linear-gradient(90deg,var(--purple),#a78bfa);}
+.mc:hover{transform:translateY(-3px);box-shadow:var(--sh2);}
+.mc-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:16px;}
+.c-red .mc-icon{background:var(--red-bg);}
+.c-green .mc-icon{background:var(--green-bg);}
+.c-blue .mc-icon{background:var(--blue-bg);}
+.c-amber .mc-icon{background:var(--amber-bg);}
+.c-purple .mc-icon{background:var(--purple-bg);}
+.mc-val{font-family:'DM Sans',sans-serif;font-size:30px;font-weight:800;letter-spacing:-1.5px;line-height:1;}
+.mc-label{font-size:12px;font-weight:600;color:var(--text2);margin-top:5px;}
+.mc-sub{font-size:11px;color:var(--text3);margin-top:3px;}
+/* CHARTS */
+.cg2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.cg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;}
+.cc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;box-shadow:var(--sh);}
+.cc-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;}
+.cc-title{font-size:14px;font-weight:700;color:var(--text);}
+.cc-sub{font-size:11px;color:var(--text3);margin-top:3px;}
+.cw{position:relative;}
+.leg{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:var(--text2);}
+.leg-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
+.bl{display:flex;flex-direction:column;gap:8px;}
+.br{display:flex;align-items:center;gap:10px;}
+.br-label{font-size:12px;font-weight:500;color:var(--text2);width:140px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.br-track{flex:1;height:8px;background:var(--surface2);border-radius:6px;overflow:hidden;}
+.br-fill{height:100%;border-radius:6px;}
+.br-val{font-size:11px;font-weight:700;color:var(--text);width:80px;text-align:right;white-space:nowrap;flex-shrink:0;}
+/* TABLE */
+.table-wrap{overflow-x:auto;margin-top:14px;}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:900px;}
+thead th{text-align:left;padding:10px 14px;background:var(--surface2);font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;cursor:pointer;user-select:none;}
+thead th:hover{background:var(--surface3);color:var(--text2);}
+thead th:first-child{border-radius:10px 0 0 10px;}
+thead th:last-child{border-radius:0 10px 10px 0;}
+tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
+tbody tr:hover{background:var(--surface2);}
+tbody tr:last-child{border-bottom:none;}
+td{padding:11px 14px;vertical-align:middle;}
+td.muted{color:var(--text2);}
+.pill{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;}
+.pill-green{background:var(--green-bg);color:var(--green);}
+.pill-amber{background:var(--amber-bg);color:var(--amber);}
+.pill-red{background:var(--red-bg);color:var(--red);}
+.pill-blue{background:var(--blue-bg);color:var(--blue);}
+.pill-gray{background:var(--surface2);color:var(--text2);}
+.pill-purple{background:var(--purple-bg);color:var(--purple);}
+/* PAGINATION */
+.pag{display:flex;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:10px;}
+.pag-info{font-size:12px;color:var(--text3);}
+.pag-btns{display:flex;gap:6px;}
+.pag-btn{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;padding:6px 13px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text2);cursor:pointer;transition:all .15s;}
+.pag-btn:hover:not(:disabled){background:var(--surface2);color:var(--text);border-color:var(--text3);}
+.pag-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.pag-btn:disabled{opacity:.35;cursor:default;}
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(15,17,23,0.5);backdrop-filter:blur(8px);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
+.overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:20px;padding:30px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:var(--sh2);animation:mi .2s ease;}
+@keyframes mi{from{opacity:0;transform:scale(.95) translateY(12px)}to{opacity:1;transform:none}}
+.m-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}
+.m-title{font-family:'DM Sans',sans-serif;font-size:20px;font-weight:800;}
+.m-close{width:32px;height:32px;border-radius:8px;background:var(--surface2);border:none;cursor:pointer;font-size:18px;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.m-close:hover{background:var(--surface3);}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.m-stat{background:var(--surface2);border-radius:12px;padding:14px 16px;}
+.m-stat-l{font-size:11px;color:var(--text3);font-weight:600;margin-bottom:4px;}
+.m-stat-v{font-size:16px;font-weight:700;color:var(--text);}
+.m-sec{margin-bottom:14px;}
+.m-sec-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:6px;}
+.m-sec-b{font-size:13px;color:var(--text);background:var(--surface2);border-radius:10px;padding:12px 14px;line-height:1.6;}
+/* QA WEEK ACCORDION */
+.qa-week{border:1px solid var(--border);border-radius:10px;background:var(--surface2);margin-bottom:8px;overflow:hidden;}
+.qa-week-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;background:transparent;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);text-align:left;}
+.qa-week-head:hover{background:var(--surface3);}
+.qa-week-title{font-size:13px;font-weight:700;}
+.qa-week-score{font-size:14px;font-weight:800;}
+.qa-week-arrow{font-size:11px;color:var(--text3);transition:transform .15s;}
+.qa-week.open .qa-week-arrow{transform:rotate(180deg);}
+.qa-week-body{display:none;padding:0 13px 13px;}
+.qa-week.open .qa-week-body{display:block;}
+.qa-rubric-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);}
+.qa-rubric-name{font-size:12px;color:var(--text2);}
+.qa-rubric-score{min-width:28px;text-align:center;font-size:12px;font-weight:800;}
+.qa-score-summary{display:flex;justify-content:space-between;margin-top:10px;padding-top:9px;border-top:1px solid var(--border);font-size:11px;color:var(--text2);}
+.qa-notes{margin-top:10px;padding:9px 10px;background:var(--surface);border-radius:8px;font-size:11px;color:var(--text2);line-height:1.5;}
+/* SEARCH */
+.search-wrap{position:relative;flex:1;max-width:260px;}
+.search-wrap input{width:100%;padding:7px 12px 7px 32px;background-image:none!important;}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text3);pointer-events:none;}
+/* SA TIERS */
+.tier-section{margin-bottom:24px;}
+.tier-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-radius:12px 12px 0 0;}
+.tier-header-inner{display:flex;align-items:center;gap:10px;}
+.tier-icon{font-size:18px;}
+.tier-title{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.06em;}
+.tier-badge{font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(255,255,255,0.2);color:#fff;}
+.tier-body{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:16px;}
+.tier-top .tier-header{background:#0d9e5c;}
+.tier-mid .tier-header{background:#d97706;}
+.tier-low .tier-header{background:#f97316;}
+.tier-critical .tier-header{background:#e03131;}
+.tier-good .tier-header{background:#2563eb;}
+.tier-empty{font-size:13px;color:var(--text3);padding:8px 0;}
+.sa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+.sa-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh);transition:transform .2s,box-shadow .2s;}
+.sa-card:hover{transform:translateY(-3px);box-shadow:var(--sh2);}
+.sa-avatar{width:42px;height:42px;border-radius:12px;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+.sa-name{font-size:14px;font-weight:700;margin-bottom:10px;}
+.sa-stats{display:flex;flex-direction:column;gap:6px;}
+.sa-row{display:flex;justify-content:space-between;font-size:12px;}
+.sa-row span:first-child{color:var(--text2);}
+.sa-row span:last-child{font-weight:700;}
+.sa-note{font-size:11px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:16px;line-height:1.5;}
+.sa-detail-btn{font-size:10.5px;font-weight:700;color:var(--blue);background:var(--blue-bg);border:none;border-radius:6px;padding:6px 8px;cursor:pointer;margin-top:10px;width:100%;transition:opacity .15s;}
+.sa-detail-btn:hover{opacity:.8;}
+/* SAR STATUS DEBUG PANEL */
+.sar-debug{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:11px;color:var(--text2);}
+.sar-debug strong{color:var(--text);}
+@media(max-width:960px){
+  .mg{grid-template-columns:repeat(2,1fr);}
+  .cg2,.cg3{grid-template-columns:1fr;}
+  .page{padding:16px;}
+  .topbar{padding:0 16px;}
+}
+@media(max-width:600px){.mg{grid-template-columns:1fr 1fr;}.mc-val{font-size:24px;}}
+.fade-in{animation:fi .4s ease both;}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="loading-bar" id="loadingBar"></div>
+
+<nav class="topbar">
+  <div class="brand">
+    <img src="https://retentionsparkssports.github.io/dashboard/logo.png" style="height:36px;width:auto;" alt="Sparks Sports Academy" onerror="this.style.display='none'"/>
+    <span class="brand-name">Sparks <span>Sports</span></span>
+  </div>
+  <div class="topbar-right">
+    <span id="lastUpdated" style="font-size:11px;color:var(--text3);margin-right:6px;"></span>
+    <button class="top-tab active" onclick="showPage('dashboard',this)">Dashboard</button>
+    <button class="top-tab" onclick="showPage('students',this)">Siswa</button>
+    <button class="top-tab" onclick="showPage('sa',this)">SA Performance</button>
+    <button class="top-tab" onclick="showPage('center',this)">Per Center</button>
+    <button class="top-tab" onclick="showPage('qa',this)">QA Performance</button>
+    <button class="top-tab" onclick="showPage('lanjut',this)">🔄 Lanjut Conversion</button>
+  </div>
+</nav>
+
+<!-- DASHBOARD PAGE -->
+<div class="page active fade-in" id="page-dashboard">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">Retention Command Center</div>
+      <div class="ph-sub" id="dbSub">Memuat data...</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="upload-btn" onclick="loadAll()" style="font-size:12px;padding:7px 16px;background:var(--blue);">🔄 Refresh Data</button>
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()" style="font-size:12px;padding:7px 16px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);">📂 Upload CSV</button>
+      <input type="file" id="fileInput" accept=".csv" onchange="handleFile(this)"/>
+    </div>
+  </div>
+
+  <div id="uploadSection" style="display:none;">
+    <div class="upload-zone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+      <div class="upload-icon">📊</div>
+      <div class="upload-title">Upload Retention Database</div>
+      <div class="upload-sub">Drag & drop file CSV di sini, atau klik tombol di bawah</div>
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Pilih File CSV</button>
+    </div>
+  </div>
+
+  <div id="dashContent" style="display:none;">
+    <div class="filter-bar">
+      <span class="fl">Filter</span>
+      <div class="ms-wrap" id="fBranchMS"></div>
+      <select id="fAgeGroup" onchange="applyFilters()"><option value="">Semua Usia</option></select>
+      <select id="fRetStatus" onchange="applyFilters()"><option value="">Semua Status</option></select>
+      <select id="fPkg" onchange="applyFilters()"><option value="">Semua Paket</option></select>
+      <div class="ms-wrap" id="fMonthMS"></div>
+      <select id="fSA" onchange="applyFilters()"><option value="">Semua SAR</option></select>
+      <div class="fd"></div>
+      <div class="toggle-wrap">
+        <span>Hanya SAR Aktif</span>
+        <div class="toggle-switch on" id="activeSAToggle" onclick="toggleActiveSA()"></div>
+      </div>
+      <div class="fd"></div>
+      <button class="reset-btn" onclick="resetFilters()">Reset</button>
+    </div>
+    <div class="mg" id="metricsGrid"></div>
+    <div class="cc" style="margin-bottom:20px;">
+      <div class="cc-head"><div><div class="cc-title">Retention Status</div><div class="cc-sub">Distribusi status semua siswa</div></div></div>
+      <div style="display:flex;gap:28px;align-items:center;flex-wrap:wrap;">
+        <div class="cw" style="height:320px;width:320px;flex-shrink:0;"><canvas id="retStatusChart"></canvas></div>
+        <div class="leg" id="retStatusLeg" style="flex:1;min-width:220px;flex-direction:column;gap:10px;"></div>
+      </div>
+    </div>
+    <div class="cg3">
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Churn Reason</div><div class="cc-sub">Top alasan churn</div></div></div>
+        <div class="bl" id="churnBars" style="margin-top:4px;"></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Age Group</div><div class="cc-sub">Distribusi usia siswa</div></div></div>
+        <div class="cw" style="height:200px;"><canvas id="ageChart"></canvas></div>
+        <div class="leg" id="ageLeg" style="margin-top:10px;"></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Retention Cycle</div><div class="cc-sub">Distribusi siklus retensi (kol. W)</div></div></div>
+        <div class="cw" style="height:200px;"><canvas id="retCycleChart"></canvas></div>
+        <div class="leg" id="retCycleLeg" style="margin-top:10px;"></div>
+      </div>
+    </div>
+    <div class="cg2">
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Siswa per Branch</div><div class="cc-sub">Total & status retention</div></div></div>
+        <div class="cw" style="height:260px;"><canvas id="branchChart"></canvas></div>
+      </div>
+      <div class="cc">
+        <div class="cc-head"><div><div class="cc-title">Paket Berlangganan</div><div class="cc-sub">Distribusi jenis paket</div></div></div>
+        <div class="bl" id="pkgBars" style="margin-top:4px;"></div>
+      </div>
+    </div>
+    <!-- COHORT SECTION — only visible when a specific month is picked -->
+    <div class="cc" style="margin-bottom:20px;display:none;" id="cohortSection">
+      <div class="cc-head">
+        <div>
+          <div class="cc-title">FP Timing — Cohort <span id="cohortLabel">—</span></div>
+          <div class="cc-sub">Distribusi kapan siswa cohort ini melakukan FP (M-3 hingga M+3)</div>
+        </div>
+        <div id="cohortStats" style="display:flex;gap:12px;flex-wrap:wrap;"></div>
+      </div>
+      <div class="cw" style="height:260px;"><canvas id="cohortChart"></canvas></div>
+      <div class="leg" id="cohortLeg" style="margin-top:12px;"></div>
+      <div id="cohortTable" style="margin-top:16px;overflow-x:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- STUDENTS PAGE -->
+<div class="page" id="page-students">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">Data Siswa</div>
+      <div class="ph-sub" id="studentSub">— siswa terdaftar</div>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <span class="fl">Filter</span>
+    <div class="ms-wrap" id="sBranchMS"></div>
+    <select id="sStatus" onchange="renderTable()"><option value="">Semua Status</option></select>
+    <select id="sAge" onchange="renderTable()"><option value="">Semua Usia</option></select>
+    <div class="ms-wrap" id="sMonthMS"></div>
+    <select id="sSA" onchange="renderTable()"><option value="">Semua SAR</option></select>
+    <div class="fd"></div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="sSearch" placeholder="Cari nama / ID..." oninput="renderTable()"/>
+    </div>
+    <div class="fd"></div>
+    <button class="reset-btn" onclick="resetStudentFilters()">Reset</button>
+  </div>
+  <div class="cc">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('branch')">Branch ↕</th>
+            <th onclick="sortTable('name')">Nama Siswa ↕</th>
+            <th onclick="sortTable('age_group')">Usia ↕</th>
+            <th>Kelas</th>
+            <th onclick="sortTable('ret_status')">Status Retention ↕</th>
+            <th onclick="sortTable('pkg_type')">Paket ↕</th>
+            <th>SA Retention</th>
+            <th>Churn Reason</th>
+            <th onclick="sortTable('last_mem_date')">Last Membership ↕</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="pag" id="pagination"></div>
+  </div>
+</div>
+
+<!-- SA PAGE -->
+<div class="page" id="page-sa">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">SA Performance</div>
+      <div class="ph-sub">Performa Student Advisor per branch</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;background:var(--surface2);border-radius:10px;padding:3px;">
+        <button class="top-tab active" id="saViewTiersBtn" onclick="setSAView('tiers')" style="padding:6px 14px;">Tiers</button>
+        <button class="top-tab" id="saViewLeaderboardBtn" onclick="setSAView('leaderboard')" style="padding:6px 14px;">Leaderboard</button>
+      </div>
+      <div class="ms-wrap" id="saMonthMS"></div>
+      <div class="ms-wrap" id="saBranchMS"></div>
+      <div class="toggle-wrap">
+        <span>Hanya SAR Aktif</span>
+        <div class="toggle-switch on" id="saActiveToggle" onclick="toggleSAActiveOnly()"></div>
+      </div>
+    </div>
+  </div>
+  <div id="sarDebug" class="sar-debug" style="display:none;"></div>
+  <div id="saNote"></div>
+  <div id="saTiers"></div>
+  <div id="saLeaderboardWrap" style="display:none;">
+    <div class="cc">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nama</th>
+              <th>Center</th>
+              <th>Total</th>
+              <th>Retained</th>
+              <th>Not Ret.</th>
+              <th>Undecided</th>
+              <th>Ret/Total %</th>
+              <th>Ret/Resp %</th>
+            </tr>
+          </thead>
+          <tbody id="saLeaderboardBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CENTER PAGE -->
+<div class="page" id="page-center">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">Performa per Center</div>
+      <div class="ph-sub">Retention rate & status per branch</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div class="ms-wrap" id="cMonthMS"></div>
+      <div class="ms-wrap" id="cBranchMS"></div>
+    </div>
+  </div>
+  <div id="centerNote" class="sa-note"></div>
+  <div class="sa-grid" id="centerGrid"></div>
+</div>
+
+<!-- QA PERFORMANCE PAGE -->
+<div class="page" id="page-qa">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">QA Performance</div>
+      <div class="ph-sub">Rata-rata skor QA chat review per SAR</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;background:var(--surface2);border-radius:10px;padding:3px;">
+        <button class="top-tab active" id="qaViewTiersBtn" onclick="setQAView('tiers')" style="padding:6px 14px;">Tiers</button>
+        <button class="top-tab" id="qaViewLeaderboardBtn" onclick="setQAView('leaderboard')" style="padding:6px 14px;">Leaderboard</button>
+      </div>
+      <div class="ms-wrap" id="qMonthMS"></div>
+      <div class="ms-wrap" id="qWeekMS"></div>
+      <div class="ms-wrap" id="qBranchMS"></div>
+    </div>
+  </div>
+  <div id="qaNote" class="sa-note"></div>
+  <div id="qaTiers"></div>
+  <div id="qaLeaderboardWrap" style="display:none;">
+    <div class="cc">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nama</th>
+              <th>Center</th>
+              <th>Total Review</th>
+              <th>Rata-rata Skor</th>
+              <th>Tier</th>
+            </tr>
+          </thead>
+          <tbody id="qaLeaderboardBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LANJUT CONVERSION PAGE -->
+<div class="page" id="page-lanjut">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">Lanjut Conversion</div>
+      <div class="ph-sub" id="lanjutSub">Memuat data log retensi...</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;background:var(--surface2);border-radius:10px;padding:3px;">
+        <button class="top-tab active" id="lanjutViewSARBtn" onclick="setLanjutView('sar')" style="padding:6px 14px;">Per SAR</button>
+        <button class="top-tab" id="lanjutViewBranchBtn" onclick="setLanjutView('branch')" style="padding:6px 14px;">Per Branch</button>
+        <button class="top-tab" id="lanjutViewLogBtn" onclick="setLanjutView('log')" style="padding:6px 14px;">Raw Log</button>
+      </div>
+      <button class="upload-btn" onclick="loadLanjutLog()" style="font-size:12px;padding:7px 16px;background:var(--blue);">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <span class="fl">Filter</span>
+    <div class="ms-wrap" id="lBranchMS"></div>
+    <div class="ms-wrap" id="lExpiryMonthMS"></div>
+    <select id="lMLabel" onchange="renderLanjut()">
+      <option value="">Semua M Label</option>
+      <option value="M0">M0</option>
+      <option value="M-1">M-1</option>
+      <option value="M-2">M-2</option>
+    </select>
+    <div class="fd"></div>
+    <button class="reset-btn" onclick="resetLanjutFilters()">Reset</button>
+  </div>
+
+  <!-- KPI metrics row -->
+  <div class="mg" id="lanjutMetrics" style="grid-template-columns:repeat(5,1fr);"></div>
+
+  <!-- M Label breakdown + Branch doughnut -->
+  <div class="cg2" style="margin-bottom:20px;">
+    <div class="cc">
+      <div class="cc-head"><div><div class="cc-title">Conversion Rate per M Label</div><div class="cc-sub">% retained dari yang bilang Lanjut, per waktu pengisian NPS relatif ke expiry</div></div></div>
+      <div class="cw" style="height:240px;"><canvas id="lanjutMLabelChart"></canvas></div>
+      <div class="leg" id="lanjutMLabelLeg" style="margin-top:10px;"></div>
+    </div>
+    <div class="cc">
+      <div class="cc-head"><div><div class="cc-title">Conversion Rate per Branch</div><div class="cc-sub">% yang benar-benar bayar dari yang Lanjut, per center</div></div></div>
+      <div class="cw" style="height:240px;"><canvas id="lanjutBranchChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Trend over time (by expiry month) -->
+  <div class="cc" style="margin-bottom:20px;">
+    <div class="cc-head"><div><div class="cc-title">Tren Conversion Rate per Bulan Expiry</div><div class="cc-sub">Dari semua siklus yang ada sinyal "Lanjut", berapa % yang benar-benar retained — per bulan expiry membership</div></div></div>
+    <div class="cw" style="height:240px;"><canvas id="lanjutTrendChart"></canvas></div>
+  </div>
+
+  <!-- Per-SAR tier view -->
+  <div id="lanjutSARView">
+    <div class="sa-note" id="lanjutNote" style="display:none;"></div>
+    <div class="sa-grid" id="lanjutSARGrid"></div>
+  </div>
+
+  <!-- Per-Branch view -->
+  <div id="lanjutBranchView" style="display:none;">
+    <div class="cc">
+      <div class="table-wrap">
+        <table style="min-width:600px;">
+          <thead>
+            <tr>
+              <th onclick="lanjutSortBy('branch')">Branch ↕</th>
+              <th onclick="lanjutSortBy('total')">Total Lanjut ↕</th>
+              <th onclick="lanjutSortBy('retained')">Retained ↕</th>
+              <th onclick="lanjutSortBy('churned')">Churn ↕</th>
+              <th onclick="lanjutSortBy('rate')">Conversion % ↕</th>
+              <th>M0 Rate</th>
+              <th>M-1 Rate</th>
+              <th>M-2 Rate</th>
+            </tr>
+          </thead>
+          <tbody id="lanjutBranchBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Raw log view -->
+  <div id="lanjutLogView" style="display:none;">
+    <div class="cc">
+      <div style="margin-bottom:10px;">
+        <div class="search-wrap" style="max-width:300px;">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="lSearch" placeholder="Cari nomor / SAR..." oninput="renderLanjutLog()" style="width:100%;"/>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table style="min-width:800px;">
+          <thead>
+            <tr>
+              <th onclick="lanjutLogSort('phone')">Phone ↕</th>
+              <th onclick="lanjutLogSort('branchCode')">Branch ↕</th>
+              <th onclick="lanjutLogSort('sar')">SAR ↕</th>
+              <th onclick="lanjutLogSort('fillDate')">Fill Date ↕</th>
+              <th onclick="lanjutLogSort('expiryDate')">Cycle Expiry ↕</th>
+              <th onclick="lanjutLogSort('mLabel')">M Label ↕</th>
+              <th onclick="lanjutLogSort('retained')">Retained ↕</th>
+            </tr>
+          </thead>
+          <tbody id="lanjutLogBody"></tbody>
+        </table>
+      </div>
+      <div class="pag" id="lanjutLogPag"></div>
+    </div>
+  </div>
+
+  <!-- Empty / loading state -->
+  <div id="lanjutEmpty" style="display:none;text-align:center;padding:60px 20px;color:var(--text3);">
+    <div style="font-size:40px;margin-bottom:12px;">📋</div>
+    <div style="font-size:16px;font-weight:700;color:var(--text2);margin-bottom:6px;">Belum ada data log</div>
+    <div style="font-size:13px;">Klik Refresh untuk memuat data dari "Lanjut Retention Log"</div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="m-head">
+      <div class="m-title" id="mTitle">Detail</div>
+      <button class="m-close" onclick="closeModal()">×</button>
+    </div>
+    <div id="mBody"></div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// CONSTANTS
+// =====================================================================
+const BRANCHES = ['BDM','BLS','BSD','CKR','HIB','KGD','KLM','KMP','KWC','MRG','PJR','PJT','PML','SBG','SBK','STR','TGC','TJD','YGC'];
+const BRANCH_NAMES = {BDM:'Bandung Merdeka',BLS:'Bali',BSD:'BSD',CKR:'Cikarang',HIB:'Harapan Indah Bekasi',KGD:'Kelapa Gading',KLM:'Kalimalang',KMP:'Kemang Pratama',KWC:'Karawaci',MRG:'Margonda',PJR:'Pajajaran',PJT:'Pejaten',PML:'Pamulang',SBG:'Surabaya Gubeng',SBK:'Surabaya Klampis',STR:'Sunter',TGC:'Tangerang City',TJD:'Tanjung Duren',YGC:'Yogyakarta'};
+const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const PAGE_SIZE = 50;
+
+// Canonical key for an SA name — case/whitespace variants of the same
+// name (typos, extra spaces, inconsistent casing) in the "SA Retention"
+// column would otherwise be treated as different SAs, splitting one
+// person's totals across multiple entries.
+const normName = s => (s || '').toLowerCase().trim();
+
+// The real today — used for 3-month tenure eligibility
+const TODAY = new Date();
+
+// =====================================================================
+// GOOGLE SHEETS URLS
+// =====================================================================
+// "All Retention Database" workbook — holds both the main retention data
+// (Compiled Retention tab) and the SAR Dictionary tab.
+const RETENTION_WORKBOOK_ID = '1gGYi_MnlQgNpv1u8JeNCPicgP54utpv3Ue3wPWb3cQ0';
+
+// Main retention database — the "Compiled Retention" tab specifically.
+// Previously pointed at a stale "Publish to web" link for a different tab
+// (wrong column layout — FP Date/FP Amount weren't even where expected).
+// Loaded by gid, which is stable across tab renames.
+const MAIN_SHEET_GID = '909854396';
+const MAIN_CSV = `https://docs.google.com/spreadsheets/d/${RETENTION_WORKBOOK_ID}/gviz/tq?tqx=out:csv&gid=${MAIN_SHEET_GID}`;
+
+// SAR Dictionary — the original "[Automated] SAR Database" sheet
+// (1OGZnco...) is not shared for anonymous CSV export, so we instead read
+// its "SAR Dictionary" tab in the same workbook, which mirrors it via
+// IMPORTRANGE. Loaded by gid (stable across tab renames), with the sheet
+// name and a "pub" export as fallbacks.
+const SAR_SHEET_ID   = RETENTION_WORKBOOK_ID;
+const SAR_SHEET_GID  = '1188717085';
+const SAR_SHEET_NAME = 'SAR Dictionary';
+const SAR_CSV = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SAR_SHEET_GID}`;
+// Fallback: same workbook, looked up by tab name instead of gid
+const SAR_CSV_ALT = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SAR_SHEET_NAME)}`;
+// Second fallback: pub CSV (if the workbook was published to web)
+const SAR_PUB_CSV = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/pub?gid=${SAR_SHEET_GID}&output=csv`;
+
+// QA Chat Review — "Sparks_QA_Working_Docs" workbook, CHAT_REVIEW tab.
+// Each row is one reviewed conversation with a sheet-computed Score /100;
+// we read that per-row score directly and average it ourselves rather than
+// trusting the workbook's own DASHBOARD_SAR aggregation tab.
+const QA_SHEET_ID  = '1SoXosWtIzTMht1rhzB-NEXDqrf9O64gEhfNbRT7OV8o';
+const QA_SHEET_GID = '283821924';
+const QA_CSV = `https://docs.google.com/spreadsheets/d/${QA_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${QA_SHEET_GID}`;
+
+// =====================================================================
+// STATE
+// =====================================================================
+let ALL = [];          // all retention rows
+let filtered = [];     // after dashboard filters (incl. month)
+let filteredNoMonth = []; // after dashboard filters, EXCLUDING month — used by the cohort/MoM section
+// Rows dropped during parsing because their Branch column value doesn't
+// exactly match the fixed BRANCHES list — see debugBranchMismatches().
+let REJECTED_BRANCH_ROWS = [];
+let sortKey  = 'name';
+let sortDir  = 1;
+let currentPage = 1;
+
+// SAR Dictionary state
+let SAR_ROWS = [];           // raw parsed rows [{codeName, status, joinDate}, ...]
+let SAR_MAP  = {};           // codeName (lowercase) -> {codeName, status, joinDate}
+let SA_ELIGIBILITY = {};     // codeName -> {active, eligible, tenureStart, rawStatus}
+let sarLoaded = false;
+let showOnlyActiveSA = true;
+// "Hanya SAR Aktif" toggle on the SA Performance page — same UI pattern as
+// the dashboard's toggle, but controls whether the tier/leaderboard views
+// on that page show only eligible SAs (Active + tenured) or every SA.
+let showOnlySAEligible = true;
+
+// track parallel load
+let mainLoaded = false;
+let tryRenderPending = false;
+
+// multi-select instances
+const multiSelects = {};
+
+// chart instances
+const charts = {};
+
+// data behind the SA page (for the detail modal)
+let saLastData = [];  // eligibility-filtered — Total/Churned/Unsure breakdown
+let saPaidData = [];  // NOT eligibility-filtered — Paid uses a different formula
+
+// data behind the Per Center page (for the detail modal), same split
+let centerLastData = [];
+let centerPaidData = [];
+
+// QA Chat Review state
+let QA_ALL = [];       // all scored QA review rows
+let qaLoaded = false;
+let qaLastData = [];   // filtered rows behind the current QA page render (for the detail modal)
+let qaLastSA = [];      // per-SAR aggregates (name, rows, avg, branches) behind the current QA page render
+
+// =====================================================================
+// DATE HELPERS
+// =====================================================================
+function parseDateFull(val) {
+  if (!val || val.startsWith('#') || val.trim() === '') return null;
+  // Strip a trailing time-of-day component (e.g. "9/16/2025 0:00:00",
+  // "2025-09-16T00:00:00.000Z") — Google Sheets CSV exports often include
+  // this even for date-only cells, which breaks the anchored regexes below.
+  const s = val.trim().replace(/[T ]\d{1,2}:\d{2}.*/i, '').trim();
+  let m;
+  // YYYY-MM-DD
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  // M/D/YYYY or MM/DD/YYYY
+  // Slash dates (supports both DD/MM/YYYY and MM/DD/YYYY)
+m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+if (m) {
+  let a = +m[1];
+  let b = +m[2];
+  let y = +m[3];
+
+  // If first number >12, it must be DD/MM/YYYY
+  if (a > 12) {
+    return new Date(y, b - 1, a);
+  }
+
+  // If second number >12, it must be MM/DD/YYYY
+  if (b > 12) {
+    return new Date(y, a - 1, b);
+  }
+
+  // Default to DD/MM/YYYY (better for Indonesian data)
+  return new Date(y, b - 1, a);
+}
+
+// Slash dates with 2-digit year
+m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+if (m) {
+  let a = +m[1];
+  let b = +m[2];
+  let y = 2000 + +m[3];
+
+  if (a > 12) {
+    return new Date(y, b - 1, a);
+  }
+
+  if (b > 12) {
+    return new Date(y, a - 1, b);
+  }
+
+  return new Date(y, b - 1, a);
+}
+  m = s.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
+  if (m) {
+    const abbrs = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const idx = abbrs.indexOf(m[2].toLowerCase());
+    let yr = +m[3]; if (yr < 100) yr += 2000;
+    if (idx >= 0) return new Date(yr, idx, +m[1]);
+  }
+  // "16-Sep-2025" already handled above
+
+  // Indonesian month names (e.g. "15 Juli 2026", "Juli 2026", "15-Juli-2026")
+  // — JS's native Date parser below only understands English month names,
+  // so dates typed with Indonesian months would otherwise silently fail.
+  const monthIdx = MONTH_NAMES.findIndex(mn => new RegExp(`(^|[^a-z])${mn}([^a-z]|$)`, 'i').test(s));
+  if (monthIdx >= 0) {
+    const yearMatch = s.match(/\b(\d{4})\b/);
+    if (yearMatch) {
+      const dayMatch = s.match(/\b(\d{1,2})\b/);
+      return new Date(+yearMatch[1], monthIdx, dayMatch ? +dayMatch[1] : 1);
+    }
+  }
+
+  // Fallback for anything else the browser can make sense of
+  // (e.g. "16 September 2025", "Sep 16, 2025")
+  const nd = new Date(s);
+  if (!isNaN(nd) && nd.getFullYear() > 2015 && nd.getFullYear() < 2100) {
+    return new Date(nd.getFullYear(), nd.getMonth(), nd.getDate());
+  }
+  return null;
+}
+
+function extractMonthLabel(val) {
+  const d = parseDateFull(val);
+  if (!d || isNaN(d)) return null;
+  return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function monthLabelToSortKey(label) {
+  // "April 2026" -> 2026*12 + 3
+  const parts = label.split(' ');
+  if (parts.length !== 2) return 0;
+  const mo = MONTH_NAMES.indexOf(parts[0]);
+  const yr = parseInt(parts[1]);
+  if (mo === -1 || isNaN(yr)) return 0;
+  return yr * 12 + mo;
+}
+
+function shiftMonth(monthLabel, delta) {
+  const parts = monthLabel.split(' ');
+  if (parts.length !== 2) return null;
+  let mo = MONTH_NAMES.indexOf(parts[0]);
+  let yr = parseInt(parts[1]);
+  if (mo === -1 || isNaN(yr)) return null;
+  mo += delta;
+  while (mo < 0)  { mo += 12; yr--; }
+  while (mo > 11) { mo -= 12; yr++; }
+  return `${MONTH_NAMES[mo]} ${yr}`;
+}
+
+// =====================================================================
+// LOADING BAR
+// =====================================================================
+function setLoading(pct) {
+  document.getElementById('loadingBar').style.width = pct + '%';
+  if (pct >= 100) setTimeout(() => document.getElementById('loadingBar').style.width = '0%', 600);
+}
+
+// =====================================================================
+// LOAD BOTH SHEETS IN PARALLEL
+// =====================================================================
+function loadAll() {
+  mainLoaded = false;
+  sarLoaded  = false;
+  document.getElementById('dbSub').textContent = 'Memuat data...';
+  setLoading(10);
+  loadMainSheet();
+  loadSARSheet();
+  loadQASheet();
+}
+
+// Google Sheets' CSV export can hang indefinitely instead of erroring out
+// (e.g. when link-sharing has been turned off) — Papa.parse has no built-in
+// timeout, so without this a broken share setting freezes the app forever
+// on "Memuat data..." with no visible error. This races the fetch against a
+// timer and treats a timeout the same as a network error.
+const LOAD_TIMEOUT_MS = 25000;
+function withTimeout(startFn, onSettle) {
+  let settled = false;
+  const timeoutId = setTimeout(() => {
+    if (settled) return;
+    settled = true;
+    onSettle({ timedOut: true });
+  }, LOAD_TIMEOUT_MS);
+  startFn((result) => {
+    if (settled) return; // timeout already fired — ignore the late response
+    settled = true;
+    clearTimeout(timeoutId);
+    onSettle({ timedOut: false, ...result });
+  });
+}
+
+function loadMainSheet() {
+  withTimeout(
+    done => Papa.parse(MAIN_CSV, {
+      download: true, skipEmptyLines: true,
+      complete(res) { done({ ok: true, res }); },
+      error()       { done({ ok: false }); }
+    }),
+    outcome => {
+      if (outcome.timedOut) {
+        console.warn(`Main sheet fetch timed out after ${LOAD_TIMEOUT_MS/1000}s — the sheet may no longer be shared as "Anyone with the link."`);
+        showUploadFallback('Google Sheets tidak merespons (timeout). Cek pengaturan share sheet, atau upload manual.');
+      } else if (!outcome.ok) {
+        showUploadFallback('Tidak bisa memuat dari Google Sheets. Coba upload manual.');
+      } else {
+        processMainRows(outcome.res.data);
+      }
+    }
+  );
+}
+
+// Try multiple URL variants for the SAR sheet
+function loadSARSheet() {
+  function tryURL(url, onFail) {
+    withTimeout(
+      done => Papa.parse(url, {
+        download: true, skipEmptyLines: true,
+        complete(res) { done({ ok: true, res }); },
+        error()       { done({ ok: false }); }
+      }),
+      outcome => {
+        if (outcome.timedOut) console.warn(`SAR sheet fetch timed out after ${LOAD_TIMEOUT_MS/1000}s for URL: ${url}`);
+        if (outcome.timedOut || !outcome.ok || outcome.res.data.length < 2) { onFail(); return; }
+        processSARRows(outcome.res.data);
+        sarLoaded = true;
+        tryRender();
+      }
+    );
+  }
+  tryURL(SAR_CSV, () => {
+    tryURL(SAR_CSV_ALT, () => {
+      tryURL(SAR_PUB_CSV, () => {
+        console.warn('SAR Dictionary could not be loaded from any URL variant.');
+        sarLoaded = true; // mark done so dashboard doesn't stay blank
+        tryRender();
+      });
+    });
+  });
+}
+
+// QA Chat Review sheet — loaded independently of the main/SAR sheets (own
+// workbook, no shared fields needed), so it doesn't gate tryRender().
+function loadQASheet() {
+  withTimeout(
+    done => Papa.parse(QA_CSV, {
+      download: true, skipEmptyLines: true,
+      complete(res) { done({ ok: true, res }); },
+      error()       { done({ ok: false }); }
+    }),
+    outcome => {
+      qaLoaded = true;
+      if (outcome.timedOut) {
+        console.warn(`QA sheet fetch timed out after ${LOAD_TIMEOUT_MS/1000}s — check the QA workbook's sharing settings ("Anyone with the link").`);
+        return;
+      }
+      if (!outcome.ok) {
+        console.warn('QA sheet failed to load.');
+        return;
+      }
+      processQARows(outcome.res.data);
+      populateQAFilters();
+      if (document.getElementById('page-qa').classList.contains('active')) renderQA();
+    }
+  );
+}
+
+function tryRender() {
+  if (mainLoaded && sarLoaded) {
+    computeSAREligibility();
+    populateSAFilter('fSA'); // needs SA_ELIGIBILITY for display names
+    populateSAFilter('sSA');
+    updateDashboard();
+    renderSA();
+    populateAllSAMonths(); // refresh SA month filter with real data
+    createMonthMultiSelect('cMonthMS', getAllMonths(ALL), () => renderCenterPerf());
+    if (document.getElementById('page-center').classList.contains('active')) renderCenterPerf();
+  }
+}
+
+// "Filter by SAR" dropdown(s) — one entry per distinct SA name (normalized,
+// merging spelling variants), sorted alphabetically by display name. Used
+// on both the Dashboard (#fSA) and Students (#sSA) pages. When branchSet is
+// given (non-empty), only SARs with at least one student in those branches
+// are listed — keeps the SAR filter in sync with the branch filter instead
+// of always showing every SAR regardless of which branch is selected.
+function populateSAFilter(id = 'fSA', branchSet = null) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const cur = el.value;
+  const pool = (branchSet && branchSet.size) ? ALL.filter(d => branchSet.has(d.branch)) : ALL;
+  const keys = [...new Set(pool.map(d => d.sa_ret).filter(Boolean).map(normName))];
+  const options = keys.map(key => ({
+    key, label: SA_ELIGIBILITY[key]?.displayName || key
+  })).sort((a,b) => a.label.localeCompare(b.label));
+  el.innerHTML = `<option value="">Semua SAR</option>` +
+    options.map(o => `<option value="${o.key}">${o.label}</option>`).join('');
+  // Restore the previous selection only if it's still valid for this branch
+  // scope; otherwise fall back to "Semua SAR" instead of silently keeping a
+  // value that's no longer in the list.
+  if (options.some(o => o.key === cur)) el.value = cur;
+  else el.value = '';
+}
+
+// =====================================================================
+// PARSE SAR DICTIONARY
+// The sheet layout from the screenshot:
+//   A: NRP   B: Code Name   C: Nama Lengkap   D: Center
+//   E: Status   F: Expected Onboarding Date   G: Actual Join Date
+//   H: End Contract Date (auto)   I: Termination Date
+//   J: Hiring Date (PKWT)   K: Email   L: Phone   M: ARM   N: NPS Name
+// =====================================================================
+function processSARRows(rows) {
+  SAR_ROWS = [];
+  SAR_MAP  = {};
+
+  // Find the header row (look for "Code Name" or "Status")
+  let headerRow = -1;
+  let hIdx = {};
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const joined = rows[i].join('|').toLowerCase();
+    if (joined.includes('code name') || joined.includes('status')) {
+      headerRow = i;
+      rows[i].forEach((h, j) => { if (h.trim()) hIdx[h.trim().toLowerCase()] = j; });
+      break;
+    }
+  }
+
+  // Column index resolution — fall back to known fixed positions
+  const codeNameIdx  = hIdx['code name']  ?? 1; // col B
+  const statusIdx    = hIdx['status']     ?? 4; // col E
+  const joinDateIdx  = hIdx['actual join date'] ?? 6; // col G
+
+  console.log('SAR header indices:', { codeNameIdx, statusIdx, joinDateIdx, hIdx });
+
+  const start = headerRow >= 0 ? headerRow + 1 : 1;
+  for (let i = start; i < rows.length; i++) {
+    const row = rows[i];
+    const codeName = row[codeNameIdx]?.trim();
+    if (!codeName || codeName.toLowerCase() === 'code name') continue;
+    const status   = row[statusIdx]?.trim()   || '';
+    const joinDate = row[joinDateIdx]?.trim()  || '';
+    const rec = { codeName, status, joinDate };
+    SAR_ROWS.push(rec);
+    SAR_MAP[codeName.toLowerCase()] = rec;
+  }
+
+  console.log(`SAR loaded: ${SAR_ROWS.length} rows`);
+  console.log('Sample SAR entries:', SAR_ROWS.slice(0, 5));
+
+  // Show debug panel
+  const dbg = document.getElementById('sarDebug');
+  if (dbg) {
+    dbg.style.display = 'block';
+    dbg.innerHTML = `<strong>SAR Dictionary:</strong> ${SAR_ROWS.length} SA dimuat ·
+      Active: ${SAR_ROWS.filter(r => r.status.toLowerCase().startsWith('active')).length} ·
+      Non-active: ${SAR_ROWS.filter(r => !r.status.toLowerCase().startsWith('active')).length}`;
+  }
+}
+
+// =====================================================================
+// PROCESS QA CHAT REVIEW ROWS
+// One row per reviewed conversation. We read each row's own sheet-computed
+// "Score /100" directly and average it ourselves per SAR/branch/period,
+// instead of trusting the workbook's separate DASHBOARD_SAR aggregation —
+// rows with no SAR name or no score yet (still in progress) are skipped.
+// =====================================================================
+// The 9 scored rubric dimensions, looked up by header text (not fixed
+// column position) — the sheet has hidden/collapsed columns between the
+// visible ones, so a positional index like row[11] silently points at the
+// wrong cell whenever the sheet's layout shifts. [key, header text].
+const QA_RUBRIC_FIELDS = [
+  ['responsivenessPython', 'A1 Responsiveness (Python)'],
+  ['responsivenessQA',     'A1 Responsiveness (QA)'],
+  ['commClarity',          'A2 Comm. Clarity'],
+  ['toneEmpathy',          'A3 Tone & Empathy'],
+  ['personalization',      'A4 Personalization'],
+  ['objHandling',          'A5 Obj. Handling'],
+  ['negoSkill',            'A6 Nego. Skill'],
+  ['ctaOwnership',         'B7 CTA & Ownership'],
+  ['retention',            'B8 Retention'],
+  ['waEtiquette',          'C9 WA Etiquette'],
+];
+
+function processQARows(rows) {
+  QA_ALL = [];
+  let hIdx = {};
+  let headerRowIdx = -1;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const joined = rows[i].join('|').toLowerCase();
+    if (joined.includes('nama sar') && joined.includes('score /100')) {
+      headerRowIdx = i;
+      rows[i].forEach((h, j) => { if (h.trim()) hIdx[h.trim().toLowerCase()] = j; });
+      break;
+    }
+  }
+  if (headerRowIdx === -1) {
+    console.warn('QA Chat Review: header row not found (looked for "Nama SAR" + "Score /100").');
+    return;
+  }
+  const col = (row, name) => { const idx = hIdx[name.toLowerCase()]; return idx !== undefined ? (row[idx] || '').trim() : ''; };
+  const numCol = (row, name) => { const v = parseFloat(col(row, name)); return isNaN(v) ? null : v; };
+
+  for (let i = headerRowIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const sar = col(row, 'nama sar');
+    if (!sar) continue;
+    const scoreRaw = col(row, 'score /100');
+    const score = parseFloat(scoreRaw);
+    if (!scoreRaw || isNaN(score)) continue;
+
+    const rubric = {};
+    QA_RUBRIC_FIELDS.forEach(([key, header]) => { rubric[key] = numCol(row, header); });
+
+    QA_ALL.push({
+      sar,
+      branch:   col(row, 'center'),
+      month:    col(row, 'month'),
+      week:     col(row, 'week'),
+      date:     col(row, 'tgl data sample'),
+      reviewer: col(row, 'reviewer'),
+      scenario: col(row, 'tipe scenario'),
+      score,
+      rawScore: col(row, 'raw score /36'),
+      tier:     col(row, 'tier'),
+      notes:    col(row, 'kutipan & catatan review'),
+      rubric,
+    });
+  }
+  console.log(`QA Chat Review loaded: ${QA_ALL.length} scored rows`);
+}
+
+// =====================================================================
+// COMPUTE SA ELIGIBILITY
+// Rules:
+//   1. codeName must exist in SAR_MAP
+//   2. status must start with "Active" (case-insensitive)
+//   3. Tenure — the earliest last-membership-date among the SA's assigned
+//      students — must be >= 3 months before today
+// =====================================================================
+function computeSAREligibility() {
+  SA_ELIGIBILITY = {};
+  if (!sarLoaded || SAR_ROWS.length === 0) return;
+
+  // Get all SA names that appear in the retention data, keyed by their
+  // normalized form so spelling/casing/whitespace variants of the same
+  // person merge into one entry instead of being treated as separate SAs.
+  const keyToRawNames = {};
+  ALL.forEach(d => {
+    if (!d.sa_ret) return;
+    const key = normName(d.sa_ret);
+    (keyToRawNames[key] = keyToRawNames[key] || new Set()).add(d.sa_ret);
+  });
+
+  const threeMonthsAgo = new Date(TODAY.getFullYear(), TODAY.getMonth() - 3, TODAY.getDate());
+
+  // Tenure start per SA = earliest last_mem_date across all of their assigned
+  // students (regardless of current retention status), merged across any
+  // spelling variants of their name.
+  const tenureStartByKey = {};
+  ALL.forEach(d => {
+    if (!d.sa_ret) return;
+    const dt = parseDateFull(d.last_mem_date);
+    if (!dt || isNaN(dt)) return;
+    const key = normName(d.sa_ret);
+    if (!tenureStartByKey[key] || dt < tenureStartByKey[key]) {
+      tenureStartByKey[key] = dt;
+    }
+  });
+
+  Object.keys(keyToRawNames).forEach(key => {
+    const dict = SAR_MAP[key];
+    const mapped  = !!dict;
+    const rawStatus = dict ? dict.status : '';
+    const active  = mapped && rawStatus.toLowerCase().startsWith('active');
+    const tenureStart = tenureStartByKey[key] || null;
+    // 3-month rule: tenure start must exist AND be at least 3 months before today
+    const eligible = active && tenureStart !== null && tenureStart <= threeMonthsAgo;
+    // Prefer the SAR Dictionary's registered spelling for display; else the
+    // first spelling variant encountered in the retention data.
+    const displayName = dict ? dict.codeName : [...keyToRawNames[key]][0];
+
+    SA_ELIGIBILITY[key] = { mapped, active, eligible, tenureStart, rawStatus, displayName, variants: [...keyToRawNames[key]] };
+  });
+
+  console.log('SA Eligibility computed:', SA_ELIGIBILITY);
+}
+
+// =====================================================================
+// PROCESS MAIN RETENTION ROWS
+// =====================================================================
+function processMainRows(rows) {
+  setLoading(60);
+  ALL = [];
+  REJECTED_BRANCH_ROWS = [];
+
+  // Find header row
+  let hIdx = {};
+  let headerRowArr = null;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const joined = rows[i].join('|').toLowerCase();
+    if (joined.includes('churn reason') || joined.includes('retention status')) {
+      headerRowArr = rows[i];
+      rows[i].forEach((h, j) => { if (h.trim()) hIdx[h.trim().toLowerCase()] = j; });
+      break;
+    }
+  }
+
+  console.log('Main sheet column mapping (by header name lookup): ' + JSON.stringify({
+    'retention status':     hIdx['retention status']     ?? '(not found — using fallback index 21/V)',
+    'fp date (mm/dd/yyyy)': hIdx['fp date (mm/dd/yyyy)'] ?? '(not found — using fallback index 34/AI)',
+    'fp amount':            hIdx['fp amount']            ?? '(not found — using fallback index 35/AJ)',
+  }));
+  if (headerRowArr) {
+    console.log('FULL header row (' + headerRowArr.length + ' columns): ' +
+      headerRowArr.map((h, i) => `[${i}] "${h}"`).join('  |  '));
+  }
+
+  const col = (row, name, fallback) => {
+    const idx = hIdx[name.toLowerCase()];
+    return (idx !== undefined ? row[idx] : row[fallback])?.trim() || '';
+  };
+  const colAny = (row, names, fallback) => {
+    for (const n of names) {
+      const idx = hIdx[n.toLowerCase()];
+      if (idx !== undefined) { const v = row[idx]?.trim(); if (v) return v; }
+    }
+    return row[fallback]?.trim() || '';
+  };
+
+  for (const row of rows) {
+    if (row.length < 10) continue;
+    const branch = row[0]?.trim();
+    const sid    = row[1]?.trim();
+    const name   = row[2]?.trim();
+    if (!BRANCHES.includes(branch)) {
+      // Track rows dropped for an unrecognized Branch value (typo, stray
+      // suffix, alternate spelling) instead of silently discarding them —
+      // see debugBranchMismatches(). Excludes the header/junk rows the
+      // next two checks below would also reject.
+      if (branch && !['Student ID','Appscript','a',''].includes(sid) && !['Student Name','Automated',''].includes(name)) {
+        REJECTED_BRANCH_ROWS.push({ branch, sid, name, expiry_date: col(row,'expiry date',48) || row[48]?.trim() || '' });
+      }
+      continue;
+    }
+    if (['Student ID','Appscript','a',''].includes(sid)) continue;
+    if (['Student Name','Automated',''].includes(name)) continue;
+    const ag = row[7]?.trim() || '';
+    // The "Paket" cell occasionally contains a stray date instead of a
+    // package name (sheet artifact) — treat those as blank rather than
+    // showing/graphing a date as if it were a package type.
+    let pkgRaw = colAny(row, ['paket','package','jenis paket','package type'], 17);
+    if (pkgRaw && parseDateFull(pkgRaw)) pkgRaw = '';
+    ALL.push({
+      branch, sid, name,
+      parent_phone: row[3]?.trim() || '',
+      age_group:    ['#N/A','#VALUE!','#REF!','#NUM!','#ERROR!'].includes(ag) ? '' : ag,
+      class1:       row[8]?.trim()  || '',
+      ret_flag:     row[10]?.trim() || '',
+      last_mem_date:row[11]?.trim() || '',
+      sa_acq:       row[12]?.trim() || '',
+      sa_ret:       row[13]?.trim() || '',
+      pkg_type:     pkgRaw,
+      age_exp:      col(row,'age exp date',18) || row[18]?.trim() || '',
+      ret_cycle:    row[22]?.trim() || '',
+      exp_payment:  row[20]?.trim() || '',
+      ret_status:   col(row,'retention status',21),
+      churn_reason: col(row,'churn reason',23) || row[23]?.trim() || '',
+      notes:        row[24]?.trim() || '',
+      fp_date:      col(row,'fp date (mm/dd/yyyy)',34) || row[34]?.trim() || '',
+      fp_amount:    col(row,'fp amount',35) || row[35]?.trim() || '',
+      expiry_date:  col(row,'expiry date',48) || row[48]?.trim() || '',
+      churn_cat:    row[46]?.trim() || col(row,'churn categorizations',46) || 'Uncategorized',
+      final_verdict:row[47]?.trim() || col(row,'final verdict',47) || 'Uncategorized',
+    });
+  }
+
+  console.log('Sample of parsed rows (ret_status / fp_date / fp_amount / expiry_date):',
+    ALL.slice(0, 5).map(d => ({ name: d.name, ret_status: d.ret_status, fp_date: d.fp_date, fp_amount: d.fp_amount, expiry_date: d.expiry_date })));
+  console.log(`Rows with FP Date filled: ${ALL.filter(d=>d.fp_date).length} / ${ALL.length}` +
+    ` — Rows with FP Amount filled: ${ALL.filter(d=>d.fp_amount).length} / ${ALL.length}` +
+    ` — Rows with Expiry Date filled: ${ALL.filter(d=>d.expiry_date).length} / ${ALL.length}`);
+  console.log('Distinct ret_cycle (col W) values found: ' +
+    JSON.stringify([...new Set(ALL.map(d=>d.ret_cycle).filter(Boolean))].sort()));
+  console.log(`Rows with notes (col Y, "Response Notes") filled: ${ALL.filter(d=>d.notes).length} / ${ALL.length}. ` +
+    `Sample: ${JSON.stringify(ALL.filter(d=>d.notes).slice(0,3).map(d=>({name:d.name, notes:d.notes})))}`);
+  console.log(`Rows with parent_phone (col D) filled: ${ALL.filter(d=>d.parent_phone).length} / ${ALL.length}. ` +
+    `Sample: ${JSON.stringify(ALL.filter(d=>d.parent_phone).slice(0,3).map(d=>({name:d.name, parent_phone:d.parent_phone})))}`);
+  const unparsedExpiry = ALL.filter(d => d.expiry_date && !parseDateFull(d.expiry_date));
+  if (unparsedExpiry.length) {
+    console.warn(`Expiry Date present but unparseable in ${unparsedExpiry.length} row(s). Sample raw value: "${unparsedExpiry[0].expiry_date}"`);
+  }
+  const excludedByEligibility = ALL.filter(d => !isRetentionEligible(d));
+  console.log(`Rows excluded by isRetentionEligible (Move to other center / Drop - unpaid installment / 7-10 Tahun): ${excludedByEligibility.length} / ${ALL.length}`);
+
+  setLoading(80);
+  initFilters();
+  filtered = [...ALL];
+  filteredNoMonth = [...ALL];
+  mainLoaded = true;
+  setLoading(100);
+
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('dashContent').style.display  = 'block';
+  document.getElementById('dbSub').textContent =
+    `${ALL.length.toLocaleString()} siswa · ${BRANCHES.filter(b=>ALL.some(d=>d.branch===b)).length} branch aktif`;
+  const now = new Date();
+  document.getElementById('lastUpdated').textContent =
+    `🔄 ${now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`;
+
+  populateStudentFilters();
+  tryRender();
+}
+
+// =====================================================================
+// FILTER INIT
+// =====================================================================
+function initFilters() {
+  const months   = getAllMonths(ALL);
+  createMonthMultiSelect('fMonthMS', months, () => applyFilters());
+
+  const branches = [...new Set(ALL.map(d=>d.branch))].sort();
+  const ages     = [...new Set(ALL.map(d=>d.age_group).filter(Boolean))].sort();
+  const statuses = [...new Set(ALL.map(d=>d.ret_status).filter(s=>s&&!s.startsWith('#')))].sort();
+  const pkgs     = [...new Set(ALL.map(d=>d.pkg_type).filter(Boolean))].sort();
+
+  function pop(id, vals, label) {
+    document.getElementById(id).innerHTML =
+      `<option value="">Semua ${label}</option>` + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+  }
+  pop('fAgeGroup', ages,     'Usia');
+  pop('fRetStatus', statuses,'Status');
+  pop('fPkg',       pkgs,    'Paket');
+
+  createMultiSelect('fBranchMS', branches, (sel) => { populateSAFilter('fSA', sel); applyFilters(); });
+}
+
+function populateStudentFilters() {
+  const months   = getAllMonths(ALL);
+  createMonthMultiSelect('sMonthMS', months, () => { currentPage=1; renderTable(); });
+
+  const branches = [...new Set(ALL.map(d=>d.branch))].sort();
+  const ages     = [...new Set(ALL.map(d=>d.age_group).filter(Boolean))].sort();
+  const statuses = [...new Set(ALL.map(d=>d.ret_status).filter(s=>s&&!s.startsWith('#')))].sort();
+
+  function pop(id, vals, label) {
+    document.getElementById(id).innerHTML =
+      `<option value="">Semua ${label}</option>` + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+  }
+  pop('sStatus', statuses, 'Status');
+  pop('sAge',    ages,     'Usia');
+
+  createMultiSelect('sBranchMS',  branches, (sel) => { populateSAFilter('sSA', sel); currentPage=1; renderTable(); });
+  createMultiSelect('saBranchMS', branches, () => renderSA());
+  createMultiSelect('cBranchMS',  branches, () => renderCenterPerf());
+}
+
+function populateAllSAMonths() {
+  createMonthMultiSelect('saMonthMS', getAllMonths(ALL), () => renderSA());
+}
+
+// Build sorted unique month labels from the data
+function getAllMonths(data) {
+  const seen = new Set();
+  let unparsed = 0, sampleRaw = null;
+  data.forEach(d => {
+    if (!d.expiry_date) return;
+    const mo = extractMonthLabel(d.expiry_date);
+    if (mo) seen.add(mo);
+    else { unparsed++; if (sampleRaw === null) sampleRaw = d.expiry_date; }
+  });
+  if (unparsed > 0 && seen.size === 0) {
+    console.warn(`getAllMonths: could not parse any of ${unparsed} expiry_date value(s). Sample raw value: "${sampleRaw}"`);
+  }
+  return [...seen].sort((a, b) => monthLabelToSortKey(a) - monthLabelToSortKey(b));
+}
+
+// Month filter — a multi-select (same widget as the branch filter) so users
+// can pick any combination of specific months instead of a single value.
+// An empty selection means "Semua Bulan" (no month filter).
+function createMonthMultiSelect(containerId, months, onChange) {
+  return createMultiSelect(containerId, months, onChange, { allLabel: 'Semua Bulan', unitLabel: 'Bulan' });
+}
+
+// Filter an array of records by a Set of selected month labels. An empty
+// (or missing) set means no month filter — return everything.
+function filterByMonth(data, monthSet) {
+  if (!monthSet || !monthSet.size) return data;
+  return data.filter(d => monthSet.has(extractMonthLabel(d.expiry_date)));
+}
+
+// =====================================================================
+// MULTI-SELECT WIDGET
+// =====================================================================
+function createMultiSelect(containerId, options, onChange, labelOpts = {}) {
+  const container = document.getElementById(containerId);
+  if (!container) return null;
+  const { allLabel = 'Semua Branch', unitLabel = 'Branch' } = labelOpts;
+  let selected = new Set();
+
+  function label() {
+    if (selected.size === 0) return allLabel;
+    if (selected.size === 1) return [...selected][0];
+    return `${selected.size} ${unitLabel} dipilih`;
+  }
+
+  function render() {
+    // Re-rendering (e.g. after "Pilih Semua" / "Reset") replaces the panel
+    // element entirely — preserve whether it was open so those buttons
+    // don't unexpectedly close the popover on the user.
+    const prevPanel = document.getElementById(`${containerId}_panel`);
+    const wasOpen = !!prevPanel && prevPanel.style.display !== 'none';
+
+    container.innerHTML = `
+      <button type="button" class="ms-btn" id="${containerId}_btn">${label()}</button>
+      <div class="ms-panel" id="${containerId}_panel" style="display:${wasOpen?'block':'none'};">
+        ${options.map(o => `
+          <label class="ms-opt">
+            <input type="checkbox" value="${o}" ${selected.has(o)?'checked':''}>
+            <span>${o}</span>
+          </label>`).join('')}
+        <div class="ms-actions">
+          <button type="button" onclick="multiSelects['${containerId}'].selectAll()">Pilih Semua</button>
+          <button type="button" onclick="multiSelects['${containerId}'].clear()">Reset</button>
+          <button type="button" onclick="multiSelects['${containerId}'].close()">Selesai ✓</button>
+        </div>
+      </div>`;
+
+    document.getElementById(`${containerId}_btn`).onclick = e => {
+      e.stopPropagation();
+      const panel = document.getElementById(`${containerId}_panel`);
+      const isOpen = panel.style.display !== 'none';
+      document.querySelectorAll('.ms-panel').forEach(p => p.style.display = 'none');
+      panel.style.display = isOpen ? 'none' : 'block';
+    };
+
+    document.getElementById(`${containerId}_panel`).onclick = e => e.stopPropagation();
+
+    container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.onchange = () => {
+        if (cb.checked) selected.add(cb.value); else selected.delete(cb.value);
+        document.getElementById(`${containerId}_btn`).textContent = label();
+        onChange(selected);
+      };
+    });
+  }
+
+  render();
+  const api = {
+    getSelected: () => selected,
+    clear: () => { selected.clear(); render(); onChange(selected); },
+    selectAll: () => { selected = new Set(options); render(); onChange(selected); },
+    close: () => {
+      const p = document.getElementById(`${containerId}_panel`);
+      if (p) p.style.display = 'none';
+    }
+  };
+  multiSelects[containerId] = api;
+  return api;
+}
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.ms-panel').forEach(p => p.style.display = 'none');
+});
+
+// =====================================================================
+// TOGGLE
+// =====================================================================
+function toggleActiveSA() {
+  showOnlyActiveSA = !showOnlyActiveSA;
+  document.getElementById('activeSAToggle').classList.toggle('on', showOnlyActiveSA);
+  updateDashboard();
+}
+
+function toggleSAActiveOnly() {
+  showOnlySAEligible = !showOnlySAEligible;
+  document.getElementById('saActiveToggle').classList.toggle('on', showOnlySAEligible);
+  renderSA();
+}
+
+// =====================================================================
+// APPLY / RESET FILTERS
+// =====================================================================
+function applyFilters() {
+  const bSet = multiSelects['fBranchMS'] ? multiSelects['fBranchMS'].getSelected() : new Set();
+  const a   = document.getElementById('fAgeGroup').value;
+  const s   = document.getElementById('fRetStatus').value;
+  const p   = document.getElementById('fPkg').value;
+  const mo  = multiSelects['fMonthMS'] ? multiSelects['fMonthMS'].getSelected() : new Set();
+  const sa  = document.getElementById('fSA').value;
+
+  filteredNoMonth = ALL.filter(d =>
+    (!bSet.size || bSet.has(d.branch)) &&
+    (!a || d.age_group === a) &&
+    (!s || d.ret_status === s) &&
+    (!p || d.pkg_type === p) &&
+    (!sa || normName(d.sa_ret) === sa)
+  );
+  filtered = filterByMonth(filteredNoMonth, mo);
+  updateDashboard();
+}
+
+function resetFilters() {
+  ['fAgeGroup','fRetStatus','fPkg','fSA'].forEach(id => document.getElementById(id).value = '');
+  if (multiSelects['fBranchMS']) multiSelects['fBranchMS'].clear();
+  if (multiSelects['fMonthMS']) multiSelects['fMonthMS'].clear();
+  filtered = [...ALL];
+  filteredNoMonth = [...ALL];
+  updateDashboard();
+}
+
+// =====================================================================
+// DASHBOARD UPDATE
+// =====================================================================
+function updateDashboard() {
+  if (!ALL.length) return;
+
+  const activeSAFilter = d => {
+    if (!showOnlyActiveSA || SAR_ROWS.length === 0) return true;
+    if (!d.sa_ret) return true; // no SA assigned — keep
+    const e = SA_ELIGIBILITY[normName(d.sa_ret)];
+    return e && e.active; // only keep if SA is Active in dictionary
+  };
+
+  // Total Siswa / Churned / etc. use the sheet's Total formula's population
+  // (isRetentionEligible). Paid Retention uses the sheet's separate Paid
+  // formula, which has no such exclusions — see paidData below.
+  let data = filtered.filter(isRetentionEligible).filter(activeSAFilter);
+  let paidData = filtered.filter(activeSAFilter);
+
+  renderMetrics(data, paidData);
+  renderRetStatus(data, paidData);
+  renderAgeChart(data);
+  renderRetCycle(data);
+  renderBranchChart(data);
+  renderChurnBars(data);
+  renderPkgBars(data);
+  // Cohort/MoM section computes its own per-month (M-3..M+3) slices, so it
+  // needs the branch/age/status/pkg/SA/active-SA filters applied but NOT
+  // the month filter (filteredNoMonth) — otherwise it always fell back to
+  // the unfiltered ALL and ignored branch selection entirely.
+  renderCohortSection(filteredNoMonth.filter(activeSAFilter));
+}
+
+// =====================================================================
+// METRICS
+// =====================================================================
+const hasValue = v => !!v && !v.startsWith('#') && v.trim() !== '';
+// Matches the "Compiled Retention" sheet's Expiry Cohort report formula:
+// Retention Status is exactly "Paid Retention" or "Paid - Cicil"
+// (case-insensitive, matching COUNTIFS text comparison) — no FP Date/FP
+// Amount check. Note: an earlier formula shown for a different report
+// used AI<>""/AJ<>"" with no status check instead — the sheet appears to
+// use two different retention definitions for different reports; this
+// matches the one behind the cohort table specifically.
+const PAID_STATUSES = ['paid retention', 'paid - cicil'];
+const isPaid = d => PAID_STATUSES.includes((d.ret_status || '').trim().toLowerCase());
+
+// Matches the exclusion criteria baked into the sheet's Total COUNTIFS:
+// students who moved centers or dropped for non-payment aren't part of
+// the retention-tracked population, nor are older age brackets that have
+// aged out of the program. "Drop - Can not retain" was tried as a third
+// exclusion but reverted — the source sheet's own Total formula does NOT
+// exclude it (confirmed via debugCenterCohort: it was the dominant excluded
+// status for branches whose count had drifted below the sheet's, e.g. BSD/
+// KGD/MRG for the Agustus 2026 cohort), so excluding it here diverged from
+// the sheet instead of matching it.
+const EXCLUDED_STATUSES = ['move to other center', 'drop - unpaid installment'];
+const EXCLUDED_AGE_SUBSTRINGS = ['7 tahun', '8 tahun', '9 tahun', '10 tahun'];
+const isRetentionEligible = d => {
+  if (EXCLUDED_STATUSES.includes((d.ret_status || '').trim().toLowerCase())) return false;
+  const age = (d.age_exp || '').toLowerCase();
+  if (EXCLUDED_AGE_SUBSTRINGS.some(sub => age.includes(sub))) return false;
+  return true;
+};
+
+// Console debug helper — call debugPaidMismatches('Juli 2026') to find rows
+// whose Retention Status looks like it should count as Paid but doesn't
+// exactly match PAID_STATUSES (whitespace, dash character, typo, etc.).
+function debugPaidMismatches(monthLabel) {
+  const rows = ALL.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date) === monthLabel);
+  const nearMiss = {};
+  rows.forEach(d => {
+    const raw = d.ret_status || '';
+    const norm = raw.trim().toLowerCase();
+    if (PAID_STATUSES.includes(norm)) return;
+    if (norm.includes('paid') || norm.includes('cicil')) {
+      if (!nearMiss[raw]) nearMiss[raw] = { count: 0, names: [] };
+      nearMiss[raw].count++;
+      nearMiss[raw].names.push(d.name);
+    }
+  });
+  const entries = Object.entries(nearMiss).sort((a, b) => b[1].count - a[1].count);
+  if (!entries.length) {
+    console.log(`debugPaidMismatches("${monthLabel}"): no near-miss "paid"/"cicil" statuses found among eligible rows — the gap is likely duplicate rows or a live-data timing difference, not a text-matching issue.`);
+    return;
+  }
+  console.log(`debugPaidMismatches("${monthLabel}"): near-miss statuses that look like they should count as Paid —`);
+  entries.forEach(([status, info]) => {
+    const codes = [...status].map(c => c.charCodeAt(0)).join(',');
+    console.log(`  "${status}" (${info.count} row[s], names: ${info.names.slice(0,5).join(', ')}${info.names.length>5?', ...':''}) — char codes: [${codes}]`);
+  });
+}
+
+// Console debug helper — call debugBranchMismatches() to see rows that were
+// dropped during parsing because their Branch column value didn't exactly
+// match the fixed BRANCHES list (typo, stray suffix, alternate spelling,
+// e.g. "BSD " or "BSD2" instead of "BSD"). Those students silently vanish
+// from every page — this is the #1 suspect when a specific branch's count
+// on the Per Center page comes up lower than the source sheet's own total.
+function debugBranchMismatches() {
+  if (!REJECTED_BRANCH_ROWS.length) {
+    console.log('debugBranchMismatches: no rows were dropped for an unrecognized branch code — branch codes look clean.');
+    return;
+  }
+  const counts = {};
+  REJECTED_BRANCH_ROWS.forEach(r => { counts[r.branch] = (counts[r.branch] || 0) + 1; });
+  console.log(`debugBranchMismatches: ${REJECTED_BRANCH_ROWS.length} row(s) dropped — their Branch value isn't in BRANCHES (${BRANCHES.join(', ')}):`);
+  Object.entries(counts).sort((a, b) => b[1] - a[1]).forEach(([b, c]) => {
+    const samples = REJECTED_BRANCH_ROWS.filter(r => r.branch === b).slice(0, 5).map(r => r.name || r.sid).join(', ');
+    console.log(`  "${b}" (${c} row[s]) — sample: ${samples}${c > 5 ? ', ...' : ''}`);
+  });
+}
+
+// Console debug helper — call debugCenterCohort('Agustus 2026') to see,
+// per branch, how many rows for that expiry-cohort month are eligible
+// ("Total siswa") vs excluded, and whether the exclusion is a status
+// (Move to other center / Drop - ...) or an aged-out age bracket (7-10
+// Tahun). Use this to check whether a branch's lower-than-expected count
+// is an age/status skew rather than a parsing issue (see
+// debugBranchMismatches for the other main suspect).
+function debugCenterCohort(monthLabel) {
+  const branches = [...new Set(ALL.map(d => d.branch))].sort();
+  console.log(`debugCenterCohort("${monthLabel}") — per-branch breakdown (raw = all rows in this cohort month regardless of eligibility):`);
+  branches.forEach(b => {
+    const rows = ALL.filter(d => d.branch === b && extractMonthLabel(d.expiry_date) === monthLabel);
+    if (!rows.length) return;
+    const eligible = rows.filter(isRetentionEligible);
+    const excludedByStatus = rows.filter(d => EXCLUDED_STATUSES.includes((d.ret_status || '').trim().toLowerCase()));
+    const excludedByAge = rows.filter(d => !EXCLUDED_STATUSES.includes((d.ret_status || '').trim().toLowerCase()) && !isRetentionEligible(d));
+    console.log(`  ${b}: raw=${rows.length}, eligible(Total siswa)=${eligible.length}, excluded-by-status=${excludedByStatus.length}, excluded-by-age=${excludedByAge.length}`);
+  });
+}
+
+function renderMetrics(data, paidData) {
+  paidData = paidData || data;
+  const total   = data.length;
+  const paid    = paidData.filter(isPaid).length;
+  const churned = data.filter(d => d.ret_status === 'Churned').length;
+  const unsure  = data.filter(d => ['Still unsure','Asked - still no response','Not yet been asked','Not yet asked'].includes(d.ret_status)).length;
+  const retRate = total ? Math.round(paid/total*100) : 0;
+
+  // The M0/M-1/M-2 breakdown needs a single anchor month, so it only shows
+  // when exactly one month is selected in the (now multi-select) month filter.
+  const selMonths = multiSelects['fMonthMS'] ? multiSelects['fMonthMS'].getSelected() : new Set();
+  const selectedMonth = selMonths.size === 1 ? [...selMonths][0] : null;
+  let subHtml = `${retRate}% retention rate`;
+  if (selectedMonth && paid > 0) {
+    const m0  = paidData.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===selectedMonth).length;
+    const m1  = paidData.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===shiftMonth(selectedMonth,-1)).length;
+    const m2  = paidData.filter(d=>isPaid(d)&&extractMonthLabel(d.fp_date)===shiftMonth(selectedMonth,-2)).length;
+    const pct = n => total ? Math.round(n/total*100) : 0;
+    subHtml = `<div style="font-size:10px;color:var(--text3);margin-top:6px;display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;"><span>M0</span><span style="font-weight:700;color:var(--green);">${pct(m0)}%</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>M-1</span><span style="font-weight:700;color:var(--green);">${pct(m1)}%</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>M-2</span><span style="font-weight:700;color:var(--green);">${pct(m2)}%</span></div>
+      <div style="border-top:1px solid var(--border);margin-top:2px;padding-top:2px;display:flex;justify-content:space-between;"><span>Total</span><span style="font-weight:700;color:var(--green);">${retRate}%</span></div>
+    </div>`;
+  }
+
+  document.getElementById('metricsGrid').innerHTML = `
+    <div class="mc c-blue fade-in"><div class="mc-icon">👤</div><div class="mc-val">${total.toLocaleString()}</div><div class="mc-label">Total Siswa</div><div class="mc-sub">dari ${ALL.length.toLocaleString()} total</div></div>
+    <div class="mc c-green fade-in"><div class="mc-icon">✅</div><div class="mc-val">${paid.toLocaleString()}</div><div class="mc-label">Paid Retention</div><div class="mc-sub">${subHtml}</div></div>
+    <div class="mc c-red fade-in"><div class="mc-icon">❌</div><div class="mc-val">${churned.toLocaleString()}</div><div class="mc-label">Churned</div><div class="mc-sub">${total?Math.round(churned/total*100):0}% dari total</div></div>
+    <div class="mc c-amber fade-in"><div class="mc-icon">⏳</div><div class="mc-val">${unsure.toLocaleString()}</div><div class="mc-label">Belum Dipastikan</div><div class="mc-sub">Perlu follow-up</div></div>
+    <div class="mc c-purple fade-in"><div class="mc-icon">🏢</div><div class="mc-val">${[...new Set(data.map(d=>d.branch))].length}</div><div class="mc-label">Branch Aktif</div><div class="mc-sub">dari ${BRANCHES.length} total</div></div>`;
+}
+
+// =====================================================================
+// CHART HELPERS
+// =====================================================================
+const CHART_BASE = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} };
+
+// Draws a value + label in the center of a doughnut chart when
+// chart.$centerTotal is set (e.g. {value: 1234, label: 'Total Cohort'}).
+Chart.register({
+  id: 'centerTotalText',
+  afterDraw(chart) {
+    const ct = chart.$centerTotal;
+    if (!ct || !chart.chartArea) return;
+    const { ctx, chartArea } = chart;
+    const x = (chartArea.left + chartArea.right) / 2;
+    const y = (chartArea.top + chartArea.bottom) / 2;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = "800 28px 'DM Sans', sans-serif";
+    ctx.fillStyle = '#0f1117';
+    ctx.fillText(ct.value.toLocaleString(), x, y - 10);
+    ctx.font = "600 11px 'Plus Jakarta Sans', sans-serif";
+    ctx.fillStyle = '#9ba3bd';
+    ctx.fillText(ct.label, x, y + 14);
+    ctx.restore();
+  }
+});
+
+function mkChart(id, type, labels, datasets, extra={}) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(el, { type, data:{labels,datasets}, options:{...CHART_BASE,...extra} });
+}
+
+function counter(arr, key) {
+  return arr.reduce((acc,d) => { const v=d[key]; if(v) acc[v]=(acc[v]||0)+1; return acc; }, {});
+}
+
+function renderBars(containerId, obj, color, max=8) {
+  const all = Object.entries(obj).filter(([k]) => k && k !== 'Uncategorized' && !k.startsWith('#'));
+  const total = all.reduce((s,[,v]) => s+v, 0);
+  const sorted = all.sort((a,b) => b[1]-a[1]).slice(0, max);
+  const maxVal = sorted[0]?.[1] || 1;
+  document.getElementById(containerId).innerHTML = sorted.map(([label,count]) => `
+    <div class="br">
+      <span class="br-label" title="${label}">${label}</span>
+      <div class="br-track"><div class="br-fill" style="width:${Math.round(count/maxVal*100)}%;background:${color};"></div></div>
+      <span class="br-val">${count.toLocaleString()} <span style="color:var(--text3);font-weight:600;">(${total?Math.round(count/total*100):0}%)</span></span>
+    </div>`).join('');
+}
+
+function renderRetStatus(data, paidData) {
+  paidData = paidData || data;
+  // Paid uses paidData (matching the headline Paid Retention card exactly,
+  // same decoupling as renderMetrics). Non-paid rows are bucketed by their
+  // *actual* ret_status text (not a fixed list) so nothing silently
+  // disappears — a status variant not in KNOWN_STATUSES (e.g. "Paid
+  // retention - DP") used to vanish from this chart entirely, making its
+  // total fall short of Total Siswa.
+  const paidN = paidData.filter(isPaid).length;
+  const KNOWN_STATUSES = ['Churned','Still unsure','Asked - still no response','Not yet been asked','Not yet asked','Confirmed to churn (still possible to retain)','Confirmed to retain (not paid yet)','Move to other center'];
+  const KNOWN_COLORS   = ['#c0392b','#9b59b6','#f59e0b','#b85c00','#b85c00','#e8744a','#5dc48a','#3498db'];
+  const OTHER_COLOR = '#94a3b8';
+
+  const nonPaidCounts = counter(data.filter(d => !isPaid(d)), 'ret_status');
+  const otherStatuses = Object.keys(nonPaidCounts)
+    .filter(k => k && !k.startsWith('#') && !KNOWN_STATUSES.includes(k))
+    .sort((a,b) => nonPaidCounts[b]-nonPaidCounts[a]);
+
+  const entries = [
+    {l:'Paid retention', v:paidN, c:'#1a7a4a'},
+    ...KNOWN_STATUSES.map((s,i) => ({l:s.length>22?s.slice(0,22)+'…':s, v:nonPaidCounts[s]||0, c:KNOWN_COLORS[i]})),
+    ...otherStatuses.map(s => ({l:s.length>22?s.slice(0,22)+'…':s, v:nonPaidCounts[s], c:OTHER_COLOR})),
+  ].filter(x=>x.v>0);
+  const total = data.length; // matches the Total Siswa headline exactly
+  const pct = v => total ? Math.round(v/total*100) : 0;
+
+  mkChart('retStatusChart','doughnut', entries.map(x=>x.l),
+    [{data:entries.map(x=>x.v),backgroundColor:entries.map(x=>x.c),borderWidth:0,hoverOffset:4}],
+    {cutout:'65%', plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed} (${pct(ctx.parsed)}%)`}}}});
+  charts['retStatusChart'].$centerTotal = { value: total, label: 'Total Cohort' };
+  charts['retStatusChart'].update('none');
+  document.getElementById('retStatusLeg').innerHTML = entries.map(x=>`<span class="leg-item"><span class="leg-dot" style="background:${x.c}"></span>${x.l}: <strong>${x.v}</strong> (${pct(x.v)}%)</span>`).join('');
+}
+
+function renderAgeChart(data) {
+  const order  = ['12-23 MONTHS','24-35 MONTHS','3-4 YO','5-7+ YO'];
+  const labels = ['12–23 bln','24–35 bln','3–4 th','5–7+ th'];
+  const colors = ['#B5D4F4','#85B7EB','#378ADD','#1a5fa8'];
+  const counts = order.map(k=>data.filter(d=>d.age_group===k).length);
+  const total  = counts.reduce((s,v)=>s+v, 0);
+  const pct    = v => total ? Math.round(v/total*100) : 0;
+  mkChart('ageChart','bar',labels,[{data:counts,backgroundColor:colors,borderRadius:5,borderWidth:0}],
+    {scales:{y:{ticks:{color:'#9ba3bd'},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true},x:{ticks:{color:'#9ba3bd'},grid:{display:false}}},
+     plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed.y} (${pct(ctx.parsed.y)}%)`}}}});
+  document.getElementById('ageLeg').innerHTML = labels.map((l,i) =>
+    `<span class="leg-item"><span class="leg-dot" style="background:${colors[i]}"></span>${l}: <strong>${counts[i]}</strong> (${pct(counts[i])}%)</span>`).join('');
+}
+
+function renderRetCycle(data) {
+  const cycles = [...new Set(data.map(d=>d.ret_cycle).filter(Boolean))]
+    .sort((a,b) => (parseInt(a)||0) - (parseInt(b)||0));
+  const colors = ['#0d9e5c','#2563eb','#d97706','#7c3aed','#e03131','#0891b2','#e8440c'];
+  const counts = cycles.map(c => data.filter(d=>d.ret_cycle===c).length);
+  const total  = counts.reduce((s,v)=>s+v, 0);
+  const pct    = v => total ? Math.round(v/total*100) : 0;
+
+  mkChart('retCycleChart','doughnut', cycles.map(c=>`Ret ${c}`),
+    [{data:counts, backgroundColor:cycles.map((c,i)=>colors[i%colors.length]), borderWidth:0, hoverOffset:4}],
+    {cutout:'65%', plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed} (${pct(ctx.parsed)}%)`}}}});
+  document.getElementById('retCycleLeg').innerHTML = cycles.map((c,i) =>
+    `<span class="leg-item"><span class="leg-dot" style="background:${colors[i%colors.length]}"></span>Ret ${c}: <strong>${counts[i]}</strong> (${pct(counts[i])}%)</span>`).join('');
+}
+
+function renderBranchChart(data) {
+  const branches = [...new Set(data.map(d=>d.branch))].sort();
+  const paid    = branches.map(b=>data.filter(d=>d.branch===b&&isPaid(d)).length);
+  const churned = branches.map(b=>data.filter(d=>d.branch===b&&d.ret_status==='Churned').length);
+  const other   = branches.map(b=>data.filter(d=>d.branch===b&&!isPaid(d)&&d.ret_status!=='Churned').length);
+  mkChart('branchChart','bar',branches,[
+    {label:'Paid',   data:paid,    backgroundColor:'#1a7a4a',borderRadius:3,borderWidth:0},
+    {label:'Churned',data:churned, backgroundColor:'#c0392b',borderRadius:3,borderWidth:0},
+    {label:'Other',  data:other,   backgroundColor:'#e8e8e0',borderRadius:3,borderWidth:0},
+  ],{scales:{x:{stacked:true,ticks:{color:'#9ba3bd'},grid:{display:false}},y:{stacked:true,ticks:{color:'#9ba3bd'},grid:{color:'rgba(0,0,0,0.04)'}}},plugins:{legend:{display:true,position:'top',labels:{font:{size:11},boxWidth:10,padding:14}}}});
+}
+
+function renderChurnBars(data) { renderBars('churnBars', counter(data,'churn_reason'), '#c0392b'); }
+function renderPkgBars(data)   { renderBars('pkgBars',   counter(data,'pkg_type'),     '#378ADD'); }
+
+// =====================================================================
+// COHORT CHART (only when a specific month is selected)
+// =====================================================================
+function renderCohortSection(data) {
+  // Needs one specific anchor month to build the M-3..M+3 window around —
+  // shown only when exactly one month is selected (not zero, not several).
+  const selMonths = multiSelects['fMonthMS'] ? multiSelects['fMonthMS'].getSelected() : new Set();
+  const section = document.getElementById('cohortSection');
+  if (selMonths.size !== 1) {
+    section.style.display = 'none';
+    return;
+  }
+  const selectedMonth = [...selMonths][0];
+  section.style.display = 'block';
+  document.getElementById('cohortLabel').textContent = selectedMonth;
+
+  const offsets = [-3,-2,-1,0,1,2,3];
+  const months  = offsets.map(o => shiftMonth(selectedMonth, o));
+  const labels  = offsets.map((o,i) => {
+    const mo = months[i];
+    return o===0 ? `M0 (${mo})` : `M${o>0?'+':''}${o} (${mo})`;
+  });
+
+  // Paid uses the sheet's Paid formula (date range + status match only, no
+  // eligibility exclusions); Total uses the sheet's Total formula (which
+  // does apply them) — the two formulas use different criteria in the
+  // source sheet, so they're computed from different populations here too.
+  const counts  = months.map(mo => data.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length);
+  const totals  = months.map(mo => data.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo).length);
+  const targets = totals.map((t,i) => i >= 3 ? Math.round(t*0.35) : null);
+
+  const barColors = ['#93c5fd','#60a5fa','#3b82f6','#0d9e5c','#fcd34d','#f59e0b','#d97706'];
+
+  mkChart('cohortChart','bar',labels,[
+    {type:'bar',  label:'Paid', data:counts, backgroundColor:barColors, borderRadius:6, borderWidth:0, order:2},
+    {type:'line', label:'Target 35%', data:targets, borderColor:'#e03131', borderWidth:2.5,
+     borderDash:[7,4], pointRadius:5, pointBackgroundColor:'#e03131', pointBorderColor:'#fff',
+     pointBorderWidth:2, fill:false, tension:0, spanGaps:false, order:1},
+  ],{
+    scales:{
+      y:{ticks:{color:'#9ba3bd'},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true},
+      x:{ticks:{color:'#6b6b63',font:{size:11}},grid:{display:false}}
+    },
+    plugins:{
+      legend:{display:true,position:'top',labels:{font:{size:11},boxWidth:12,padding:16,filter:item=>item.datasetIndex===1}},
+      tooltip:{callbacks:{label: ctx => {
+        if(ctx.datasetIndex===1) return ` Target 35%: ${ctx.parsed.y}`;
+        const t = totals[ctx.dataIndex];
+        return ` ${ctx.parsed.y} paid dari ${t} siswa (${t?Math.round(ctx.parsed.y/t*100):0}%)`;
+      }}}
+    }
+  });
+
+  const m0Total = data.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===selectedMonth).length;
+  const m0Paid  = data.filter(d => extractMonthLabel(d.expiry_date)===selectedMonth && isPaid(d)).length;
+  document.getElementById('cohortStats').innerHTML = `
+    <div style="text-align:center;padding:6px 14px;background:var(--surface2);border-radius:8px;">
+      <div style="font-size:18px;font-weight:800;font-family:'DM Sans',sans-serif;">${m0Total}</div>
+      <div style="font-size:11px;color:var(--text2);">Total Cohort M0</div>
+    </div>
+    <div style="text-align:center;padding:6px 14px;background:var(--green-bg);border-radius:8px;">
+      <div style="font-size:18px;font-weight:800;font-family:'DM Sans',sans-serif;color:var(--green);">${m0Paid}</div>
+      <div style="font-size:11px;color:var(--green);">Paid M0</div>
+    </div>
+    <div style="text-align:center;padding:6px 14px;background:var(--surface2);border-radius:8px;">
+      <div style="font-size:18px;font-weight:800;font-family:'DM Sans',sans-serif;">${m0Total?Math.round(m0Paid/m0Total*100):0}%</div>
+      <div style="font-size:11px;color:var(--text2);">Retention Rate M0</div>
+    </div>`;
+
+  document.getElementById('cohortLeg').innerHTML = [
+    {c:'#3b82f6',l:'M-3 ~ M-1'},{c:'#0d9e5c',l:'M0 (bulan dipilih)'},{c:'#f59e0b',l:'M+1 ~ M+3'},
+    {c:'#e03131',l:'Target 35%',dash:true},
+  ].map(x=>`<span class="leg-item"><span class="leg-dot" style="background:${x.dash?'transparent':'x.c'};${x.dash?'border-top:2px dashed #e03131;border-radius:0;width:14px;height:2px;':'background:'+x.c+';'}"></span>${x.l}</span>`).join('');
+
+  // Per-cohort mini cards
+  const cards = offsets.map((o,i) => {
+    const mo = months[i];
+    const t = data.filter(d => isRetentionEligible(d) && extractMonthLabel(d.expiry_date)===mo).length;
+    const p = data.filter(d => extractMonthLabel(d.expiry_date)===mo && isPaid(d)).length;
+    const pct = t ? Math.round(p/t*100) : 0;
+    const pctColor = pct>=35?'var(--green)':pct>=20?'var(--amber)':'var(--red)';
+    return `<div style="background:var(--surface2);border-radius:12px;padding:12px 14px;min-width:120px;flex:1;">
+      <div style="font-size:11px;font-weight:700;color:${barColors[i]};">${labels[i].split(' ')[0]}</div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">${mo||'—'}</div>
+      <div style="font-size:20px;font-weight:800;color:${pctColor};font-family:'DM Sans',sans-serif;">${pct}%</div>
+      <div style="font-size:10px;color:var(--text3);">${p}/${t} paid</div>
+    </div>`;
+  }).join('');
+  document.getElementById('cohortTable').innerHTML =
+    `<div style="display:flex;gap:8px;margin-top:12px;overflow-x:auto;padding-bottom:4px;">${cards}</div>`;
+}
+
+// =====================================================================
+// STUDENT TABLE
+// =====================================================================
+function statusPill(s) {
+  if (!s || s==='#N/A') return `<span class="pill pill-gray">—</span>`;
+  if (s.includes('Paid')) return `<span class="pill pill-green">${s}</span>`;
+  if (s.includes('Churn')||s==='Churned') return `<span class="pill pill-red">${s.length>20?s.slice(0,20)+'…':s}</span>`;
+  if (s.includes('unsure')||s.includes('response')||s.includes('asked')||s.includes('Not yet')) return `<span class="pill pill-amber">${s.length>22?s.slice(0,22)+'…':s}</span>`;
+  if (s.includes('retain')) return `<span class="pill pill-blue">${s.length>22?s.slice(0,22)+'…':s}</span>`;
+  return `<span class="pill pill-gray">${s.length>22?s.slice(0,22)+'…':s}</span>`;
+}
+function agePill(a) {
+  if (!a) return '';
+  const m = {'3-4 YO':'pill-green','5-7+ YO':'pill-blue','24-35 MONTHS':'pill-amber','12-23 MONTHS':'pill-purple'};
+  return `<span class="pill ${m[a]||'pill-gray'}">${a}</span>`;
+}
+function churnPill(c) {
+  if (!c||c==='Uncategorized') return '';
+  if (c==='Retained in Sports') return `<span class="pill pill-green">Retained</span>`;
+  if (c==='Churned'||c==='Move to other activity') return `<span class="pill pill-red">${c}</span>`;
+  return `<span class="pill pill-gray">${c.length>18?c.slice(0,18)+'…':c}</span>`;
+}
+
+function resetStudentFilters() {
+  ['sStatus','sAge','sSA'].forEach(id => document.getElementById(id).value='');
+  if (multiSelects['sBranchMS']) multiSelects['sBranchMS'].clear();
+  if (multiSelects['sMonthMS']) multiSelects['sMonthMS'].clear();
+  document.getElementById('sSearch').value = '';
+  renderTable();
+}
+
+function sortTable(key) {
+  if (sortKey===key) sortDir*=-1; else { sortKey=key; sortDir=1; }
+  renderTable();
+}
+
+function renderTable() {
+  if (!ALL.length) return;
+  const bSet = multiSelects['sBranchMS'] ? multiSelects['sBranchMS'].getSelected() : new Set();
+  const s  = document.getElementById('sStatus').value;
+  const a  = document.getElementById('sAge').value;
+  const mo = multiSelects['sMonthMS'] ? multiSelects['sMonthMS'].getSelected() : new Set();
+  const sa = document.getElementById('sSA').value;
+  const q  = document.getElementById('sSearch').value.toLowerCase();
+
+  let rows = filterByMonth(ALL, mo).filter(d =>
+    (!bSet.size||bSet.has(d.branch)) && (!s||d.ret_status===s) && (!a||d.age_group===a) &&
+    (!sa||normName(d.sa_ret)===sa) &&
+    (!q||(d.name.toLowerCase().includes(q)||d.sid.toLowerCase().includes(q)))
+  );
+  rows.sort((a,b) => {
+    if (sortKey === 'last_mem_date') {
+      const ad = parseDateFull(a.last_mem_date), bd = parseDateFull(b.last_mem_date);
+      const av = ad ? ad.getTime() : -Infinity, bv = bd ? bd.getTime() : -Infinity;
+      return av<bv ? -sortDir : av>bv ? sortDir : 0;
+    }
+    const av=a[sortKey]||'', bv=b[sortKey]||'';
+    return av<bv ? -sortDir : av>bv ? sortDir : 0;
+  });
+
+  document.getElementById('studentSub').textContent = `${rows.length.toLocaleString()} siswa`;
+  const totalPages = Math.max(1, Math.ceil(rows.length/PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = 1;
+  const start = (currentPage-1)*PAGE_SIZE;
+  const pageRows = rows.slice(start, start+PAGE_SIZE);
+
+  document.getElementById('tableBody').innerHTML = pageRows.map(d => {
+    const i = ALL.indexOf(d);
+    const cls = d.class1 ? d.class1.split('|').slice(2,4).join(' ').trim() : '—';
+    const lastMemDt = parseDateFull(d.last_mem_date);
+    const lastMemDisplay = lastMemDt ? lastMemDt.toLocaleDateString('id-ID') : (d.last_mem_date || '—');
+    return `<tr onclick="openModal(${i})">
+      <td><strong>${d.branch}</strong></td>
+      <td>${d.name}</td>
+      <td>${agePill(d.age_group)||'<span class="muted">—</span>'}</td>
+      <td class="muted" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${d.class1}">${cls}</td>
+      <td>${statusPill(d.ret_status)}</td>
+      <td class="muted">${d.pkg_type||'—'}</td>
+      <td class="muted">${d.sa_ret||'—'}</td>
+      <td>${churnPill(d.churn_reason)}</td>
+      <td class="muted">${lastMemDisplay}</td>
+      <td class="muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${d.notes||''}">${d.notes||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  renderPagination(rows.length, totalPages);
+}
+
+function renderPagination(total, totalPages) {
+  const start = (currentPage-1)*PAGE_SIZE+1;
+  const end   = Math.min(currentPage*PAGE_SIZE, total);
+  const range = [];
+  for (let i=Math.max(1,currentPage-2); i<=Math.min(totalPages,currentPage+2); i++) range.push(i);
+  let btns = '';
+  if (range[0]>1) { btns+=`<button class="pag-btn" onclick="goPage(1)">1</button>`; if(range[0]>2) btns+=`<span style="padding:0 4px;color:var(--text3)">…</span>`; }
+  range.forEach(i => { btns+=`<button class="pag-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`; });
+  if (range[range.length-1]<totalPages) { if(range[range.length-1]<totalPages-1) btns+=`<span style="padding:0 4px;color:var(--text3)">…</span>`; btns+=`<button class="pag-btn" onclick="goPage(${totalPages})">${totalPages}</button>`; }
+  document.getElementById('pagination').innerHTML = `
+    <span class="pag-info">${start}–${end} dari ${total.toLocaleString()}</span>
+    <div class="pag-btns">
+      <button class="pag-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>
+      ${btns}
+      <button class="pag-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>
+    </div>`;
+}
+function goPage(p) { currentPage=p; renderTable(); window.scrollTo(0, document.getElementById('page-students').offsetTop-60); }
+
+// =====================================================================
+// SA PERFORMANCE PAGE
+// =====================================================================
+function renderSA() {
+  if (!ALL.length) return;
+  const branchSet = multiSelects['saBranchMS'] ? multiSelects['saBranchMS'].getSelected() : new Set();
+  const mo = multiSelects['saMonthMS'] ? multiSelects['saMonthMS'].getSelected() : new Set();
+  let base = filterByMonth(ALL, mo);
+  if (branchSet.size) base = base.filter(d => branchSet.has(d.branch));
+  // Total/Churned/Unsure use the sheet's Total formula's population
+  // (isRetentionEligible); Paid uses the sheet's separate Paid formula,
+  // which has no such exclusions — same split as updateDashboard.
+  let data = base.filter(isRetentionEligible);
+  let paidData = base;
+  saLastData = data;
+  saPaidData = paidData;
+
+  // Build per-SA stats — grouped by normalized name so spelling/casing/
+  // whitespace variants of the same SA merge into one entry instead of
+  // splitting their totals across multiple cards (see normName above).
+  const saMap = {};
+  data.forEach(d => {
+    if (!d.sa_ret) return;
+    const key = normName(d.sa_ret);
+    if (!saMap[key]) {
+      const displayName = SA_ELIGIBILITY[key]?.displayName || d.sa_ret;
+      saMap[key] = {key, name:displayName, total:0, paid:0, churned:0, unsure:0, branches:new Set()};
+    }
+    const sa = saMap[key];
+    sa.total++;
+    sa.branches.add(d.branch);
+    if (d.ret_status==='Churned') sa.churned++;
+    else if (!isPaid(d)) sa.unsure++;
+  });
+  paidData.forEach(d => {
+    if (!d.sa_ret || !isPaid(d)) return;
+    const sa = saMap[normName(d.sa_ret)];
+    if (sa) sa.paid++;
+  });
+
+  const allSA = Object.values(saMap).map(sa => ({
+    ...sa, rate: sa.total ? Math.round(sa.paid/sa.total*100) : 0
+  })).sort((a,b) => b.rate-a.rate);
+
+  const dictLoaded = SAR_ROWS.length > 0;
+
+  // Apply eligibility filter, tracking *why* each excluded SA was excluded
+  let notMapped = 0, notActive = 0, notTenured = 0;
+  const eligibilityFiltered = dictLoaded
+    ? allSA.filter(sa => {
+        const e = SA_ELIGIBILITY[sa.key];
+        if (!e || !e.mapped) { notMapped++;  return false; }
+        if (!e.active)       { notActive++;  return false; }
+        if (!e.eligible)     { notTenured++; return false; }
+        return true;
+      })
+    : allSA;
+
+  // "Hanya SAR Aktif" toggle — when off, show every SA regardless of
+  // Active/tenure status instead of the eligibility-filtered list.
+  const eligibleSA = showOnlySAEligible ? eligibilityFiltered : allSA;
+
+  const hiddenCount = allSA.length - eligibilityFiltered.length;
+
+  // Note banner
+  document.getElementById('saNote').innerHTML = !dictLoaded
+    ? `<div class="sa-note">⚠️ SAR Dictionary belum berhasil dimuat — menampilkan semua SA tanpa filter eligibility.</div>`
+    : showOnlySAEligible
+      ? `<div class="sa-note">📋 Hanya SA berstatus <strong>Active</strong> di SAR Dictionary dan sudah bekerja ≥ 3 bulan (dihitung dari <em>last membership date</em> siswa pertama yang ditugaskan ke SA tsb) yang muncul di leaderboard. <strong>${hiddenCount} SA</strong> disembunyikan — ${notMapped} tidak terdaftar di SAR Dictionary, ${notActive} berstatus tidak Active, ${notTenured} belum 3 bulan. Matikan toggle "Hanya SAR Aktif" untuk melihat semua.</div>`
+      : `<div class="sa-note">👁️ Menampilkan <strong>semua SA</strong> (termasuk yang tidak aktif / belum 3 bulan). <strong>${hiddenCount}</strong> di antaranya tidak eligible untuk leaderboard resmi.</div>`;
+
+  const tierDefs = [
+    {cls:'tier-top',      icon:'🏆', title:'Top Performer',    badge:'RR ≥ 35%',   filter:sa=>sa.rate>=35},
+    {cls:'tier-mid',      icon:'📈', title:'Mid Performer',    badge:'RR 30–34%',  filter:sa=>sa.rate>=30&&sa.rate<35},
+    {cls:'tier-low',      icon:'⚠️', title:'Low Performer',    badge:'RR 25–29%',  filter:sa=>sa.rate>=25&&sa.rate<30},
+    {cls:'tier-critical', icon:'🚨', title:'Special Attention',badge:'RR < 25%',   filter:sa=>sa.rate<25},
+  ];
+
+  const avatarColors = ['#0d9e5c','#2563eb','#e03131','#d97706','#7c3aed','#e8440c','#0891b2','#16a34a'];
+
+  const saCard = (sa, i) => {
+    const color    = avatarColors[i % avatarColors.length];
+    const initials = sa.name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+    const rateColor = sa.rate>=35?'var(--green)':sa.rate>=30?'var(--amber)':sa.rate>=25?'#f97316':'var(--red)';
+    const safeKey   = sa.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="sa-card">
+      <div class="sa-avatar" style="background:${color};">${initials}</div>
+      <div class="sa-name">${sa.name}</div>
+      <div class="sa-stats">
+        <div class="sa-row"><span>Total siswa</span><span>${sa.total}</span></div>
+        <div class="sa-row"><span>Paid</span><span style="color:var(--green);">${sa.paid}</span></div>
+        <div class="sa-row"><span>Churned</span><span style="color:var(--red);">${sa.churned}</span></div>
+        <div class="sa-row"><span>Belum pasti</span><span style="color:var(--amber);">${sa.unsure}</span></div>
+        <div class="sa-row"><span>Retention rate</span><span style="font-weight:800;color:${rateColor};">${sa.rate}%</span></div>
+        <div class="sa-row"><span>Branch</span><span style="font-size:11px;color:var(--text2);">${[...sa.branches].join(', ')}</span></div>
+      </div>
+      <button class="sa-detail-btn" onclick="event.stopPropagation();openSADetail('${safeKey}')">📊 Detail Status Cohort</button>
+    </div>`;
+  };
+
+  document.getElementById('saTiers').innerHTML = tierDefs.map(tier => {
+    const members = eligibleSA.filter(tier.filter);
+    return `<div class="tier-section ${tier.cls}">
+      <div class="tier-header">
+        <div class="tier-header-inner">
+          <span class="tier-icon">${tier.icon}</span>
+          <span class="tier-title">${tier.title}</span>
+        </div>
+        <span class="tier-badge">${tier.badge} · ${members.length} SA</span>
+      </div>
+      <div class="tier-body">
+        ${members.length
+          ? `<div class="sa-grid">${members.map((sa,i)=>saCard(sa,i)).join('')}</div>`
+          : `<div class="tier-empty">Tidak ada SA di tier ini untuk periode ini.</div>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  renderSALeaderboard(eligibleSA);
+}
+
+// Sortable-by-eye leaderboard table, alongside the tier card view.
+// "Retained"/"Not Ret."/"Undecided" reuse the same Paid/Churned/Unsure
+// breakdown used everywhere else, rather than introducing a new category
+// scheme. Ret/Resp % excludes Undecided from the denominator (retention
+// rate among SA who've actually reached a decision either way).
+function renderSALeaderboard(eligibleSA) {
+  const rows = [...eligibleSA].sort((a,b) => b.rate-a.rate);
+  document.getElementById('saLeaderboardBody').innerHTML = rows.map((sa,i) => {
+    const responded = sa.paid + sa.churned;
+    const respPct = responded ? Math.round(sa.paid/responded*100) : 0;
+    const rateColor = sa.rate>=35?'var(--green)':sa.rate>=30?'var(--amber)':sa.rate>=25?'#f97316':'var(--red)';
+    const safeKey = sa.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<tr onclick="openSADetail('${safeKey}')">
+      <td class="muted">${i+1}</td>
+      <td><strong>${sa.name}</strong></td>
+      <td class="muted">${[...sa.branches].join(', ')}</td>
+      <td>${sa.total}</td>
+      <td style="color:var(--green);font-weight:700;">${sa.paid}</td>
+      <td style="color:var(--red);font-weight:700;">${sa.churned}</td>
+      <td style="color:var(--amber);font-weight:700;">${sa.unsure}</td>
+      <td style="color:${rateColor};font-weight:800;">${sa.rate}%</td>
+      <td class="muted">${respPct}%</td>
+    </tr>`;
+  }).join('');
+}
+
+function setSAView(view) {
+  document.getElementById('saTiers').style.display = view==='tiers' ? 'block' : 'none';
+  document.getElementById('saLeaderboardWrap').style.display = view==='leaderboard' ? 'block' : 'none';
+  document.getElementById('saViewTiersBtn').classList.toggle('active', view==='tiers');
+  document.getElementById('saViewLeaderboardBtn').classList.toggle('active', view==='leaderboard');
+}
+
+function openSADetail(key) {
+  const rows = saLastData.filter(d => normName(d.sa_ret) === key);
+  const statusCounts   = counter(rows,'ret_status');
+  const churnCatCounts = counter(rows,'churn_cat');
+  const paidN = saPaidData.filter(d => normName(d.sa_ret) === key && isPaid(d)).length;
+  const e = SA_ELIGIBILITY[key];
+  const displayName = e?.displayName || (rows[0] && rows[0].sa_ret) || key;
+
+  const variantsNote = e && e.variants.length > 1
+    ? `<span class="pill pill-purple">Digabung dari ${e.variants.length} ejaan: ${e.variants.join(', ')}</span>`
+    : '';
+
+  const eligBadge = e
+    ? [
+        e.mapped
+          ? (e.active ? `<span class="pill pill-green">Active</span>` : `<span class="pill pill-red">${e.rawStatus||'Tidak Aktif'}</span>`)
+          : `<span class="pill pill-gray">Tidak terdaftar di SAR Dictionary</span>`,
+        e.tenureStart
+          ? `<span class="pill pill-blue">Aktif sejak: ${e.tenureStart.toLocaleDateString('id-ID')}</span>`
+          : '',
+        e.eligible
+          ? `<span class="pill pill-green">✓ Eligible Leaderboard</span>`
+          : `<span class="pill pill-amber">✗ Belum 3 bulan / tidak eligible</span>`,
+        variantsNote,
+      ].join(' ')
+    : '<span class="pill pill-gray">Tidak ditemukan di SAR Dictionary</span>';
+
+  const statusRows = Object.entries(statusCounts).sort((a,b)=>b[1]-a[1])
+    .map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><span>${k||'—'}</span><strong>${v}</strong></div>`).join('');
+  const churnRows  = Object.entries(churnCatCounts).filter(([k])=>k&&k!=='Uncategorized').sort((a,b)=>b[1]-a[1])
+    .map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><span>${k}</span><strong>${v}</strong></div>`).join('');
+
+  document.getElementById('mTitle').textContent = `Detail SA — ${displayName}`;
+  document.getElementById('mBody').innerHTML = `
+    <div style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:6px;">${eligBadge}</div>
+    <div class="m-grid">
+      <div class="m-stat"><div class="m-stat-l">Total Siswa (filter aktif)</div><div class="m-stat-v">${rows.length}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Paid Retention</div><div class="m-stat-v" style="color:var(--green);">${paidN}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Churned</div><div class="m-stat-v" style="color:var(--red);">${rows.filter(d=>d.ret_status==='Churned').length}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Retention Rate</div><div class="m-stat-v">${rows.length?Math.round(paidN/rows.length*100):0}%</div></div>
+    </div>
+    <div class="m-sec"><div class="m-sec-t">Status Retention</div><div class="m-sec-b">${statusRows||'—'}</div></div>
+    <div class="m-sec"><div class="m-sec-t">Churn Categorization</div><div class="m-sec-b">${churnRows||'Tidak ada data churn terkategorisasi'}</div></div>`;
+  document.getElementById('overlay').classList.add('open');
+}
+
+// =====================================================================
+// STUDENT MODAL
+// =====================================================================
+function openModal(idx) {
+  const d = ALL[idx];
+  const lastMemDt = parseDateFull(d.last_mem_date);
+  const lastMemDisplay = lastMemDt ? lastMemDt.toLocaleDateString('id-ID') : (d.last_mem_date || '—');
+  document.getElementById('mTitle').textContent = d.name;
+  document.getElementById('mBody').innerHTML = `
+    <div class="m-grid">
+      <div class="m-stat"><div class="m-stat-l">Branch</div><div class="m-stat-v">${d.branch} — ${BRANCH_NAMES[d.branch]||''}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Student ID</div><div class="m-stat-v" style="font-size:13px;">${d.sid}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Age Group</div><div class="m-stat-v">${d.age_group||'—'}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Paket</div><div class="m-stat-v" style="font-size:13px;">${d.pkg_type||'—'}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Last Membership Date</div><div class="m-stat-v" style="font-size:13px;">${lastMemDisplay}</div></div>
+      <div class="m-stat"><div class="m-stat-l">No. HP Orang Tua</div><div class="m-stat-v" style="font-size:13px;">${d.parent_phone||'—'}</div></div>
+    </div>
+    <div style="margin-bottom:12px;">${statusPill(d.ret_status)}</div>
+    ${d.class1?`<div class="m-sec"><div class="m-sec-t">Kelas</div><div class="m-sec-b">${d.class1}</div></div>`:''}
+    <div class="m-sec"><div class="m-sec-t">SA Retention</div><div class="m-sec-b">${d.sa_ret||'—'}</div></div>
+    ${d.notes?`<div class="m-sec"><div class="m-sec-t">Notes</div><div class="m-sec-b">${d.notes}</div></div>`:''}
+    ${d.churn_cat&&d.churn_cat!=='Uncategorized'?`<div class="m-sec"><div class="m-sec-t">Churn Category</div><div class="m-sec-b">${d.churn_cat}</div></div>`:''}
+    ${d.final_verdict&&d.final_verdict!=='Uncategorized'?`<div class="m-sec"><div class="m-sec-t">Final Verdict</div><div class="m-sec-b">${d.final_verdict}</div></div>`:''}
+    ${d.exp_payment&&!d.exp_payment.startsWith('#')?`<div class="m-sec"><div class="m-sec-t">Expected Payment</div><div class="m-sec-b">${d.exp_payment}</div></div>`:''}`;
+  document.getElementById('overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+
+// =====================================================================
+// CENTER PERFORMANCE PAGE
+// =====================================================================
+// Reuses the same Retained/Not Retained/Undecided (Paid/Churned/Unsure)
+// definitions used everywhere else, and the same Total-vs-Paid split
+// (Total uses isRetentionEligible; Paid doesn't) — see updateDashboard.
+function renderCenterPerf() {
+  if (!ALL.length) return;
+  const mo = multiSelects['cMonthMS'] ? multiSelects['cMonthMS'].getSelected() : new Set();
+  const branchSet = multiSelects['cBranchMS'] ? multiSelects['cBranchMS'].getSelected() : new Set();
+  let base = filterByMonth(ALL, mo);
+  if (branchSet.size) base = base.filter(d => branchSet.has(d.branch));
+  const data = base.filter(isRetentionEligible);
+  const paidData = base;
+  centerLastData = data;
+  centerPaidData = paidData;
+
+  const branchMap = {};
+  data.forEach(d => {
+    if (!branchMap[d.branch]) branchMap[d.branch] = { branch: d.branch, total: 0, paid: 0, churned: 0, unsure: 0, confirmRetain: 0, confirmChurn: 0, sars: new Set() };
+    const b = branchMap[d.branch];
+    b.total++;
+    const status = (d.ret_status || '').trim().toLowerCase();
+    if (status === 'churned') b.churned++;
+    else if (status === 'confirmed to retain (not paid yet)') b.confirmRetain++;
+    else if (status === 'confirmed to churn (still possible to retain)') b.confirmChurn++;
+    else if (!isPaid(d)) b.unsure++;
+    if (d.sa_ret) {
+      const e = SA_ELIGIBILITY[normName(d.sa_ret)];
+      if (e?.active) b.sars.add(e.displayName);
+    }
+  });
+  paidData.forEach(d => {
+    if (!isPaid(d)) return;
+    const b = branchMap[d.branch];
+    if (b) b.paid++;
+  });
+
+  const centers = Object.values(branchMap).map(b => ({
+    ...b, rate: b.total ? Math.round(b.paid / b.total * 100) : 0
+  })).sort((a, b) => b.rate - a.rate);
+
+  document.getElementById('centerNote').textContent =
+    'Retained/Churned menggunakan definisi yang sama dengan halaman Dashboard. Undecided sekarang hanya mencakup Still Unsure / Asked - Still No Response / Not Yet Been Asked / belum diisi — Confirmed to Retain (not paid yet) dan Confirmed to Churn (still possible to retain) dipisah jadi kategori sendiri. Klik "Lihat Detail" untuk breakdown status lengkap.';
+
+  document.getElementById('centerGrid').innerHTML = centers.map(c => {
+    const rateColor = c.rate>=35?'var(--green)':c.rate>=30?'var(--amber)':c.rate>=25?'#f97316':'var(--red)';
+    const sarList = [...c.sars].sort();
+    return `<div class="sa-card">
+      <div class="sa-name" style="font-size:16px;">${BRANCH_NAMES[c.branch]||c.branch} <span style="font-size:11px;color:var(--text3);font-weight:600;">(${c.branch})</span></div>
+      <div style="margin:8px 0 12px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px;">Student Advisors</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">${sarList.length ? sarList.map(n=>`<span class="pill pill-green">${n}</span>`).join('') : '<span class="pill pill-gray">—</span>'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;margin:10px 0;">
+        <div style="width:88px;height:88px;flex-shrink:0;"><canvas id="centerChart_${c.branch}"></canvas></div>
+        <div>
+          <div style="font-size:26px;font-weight:800;color:${rateColor};font-family:'DM Sans',sans-serif;">${c.rate}%</div>
+          <div style="font-size:11px;color:var(--text3);">${c.paid}/${c.total} retained</div>
+        </div>
+      </div>
+      <div class="sa-stats">
+        <div class="sa-row"><span>Total siswa</span><span>${c.total}</span></div>
+        <div class="sa-row"><span>Retained</span><span style="color:var(--green);">${c.paid}</span></div>
+        <div class="sa-row"><span>Not Retained</span><span style="color:var(--red);">${c.churned}</span></div>
+        <div class="sa-row"><span>Undecided</span><span style="color:var(--amber);">${c.unsure}</span></div>
+        <div class="sa-row"><span>Confirmed to Retain</span><span style="color:var(--blue);">${c.confirmRetain}</span></div>
+        <div class="sa-row"><span>Confirmed to Churn</span><span style="color:var(--purple);">${c.confirmChurn}</span></div>
+      </div>
+      <button class="sa-detail-btn" onclick="event.stopPropagation();openCenterDetail('${c.branch}')">📊 Lihat Detail</button>
+    </div>`;
+  }).join('');
+
+  // Canvases only exist after the innerHTML assignment above, so charts
+  // are created in a second pass.
+  centers.forEach(c => {
+    mkChart(`centerChart_${c.branch}`, 'doughnut', ['Retained','Not Retained','Undecided','Confirmed to Retain','Confirmed to Churn'],
+      [{ data: [c.paid, c.churned, c.unsure, c.confirmRetain, c.confirmChurn], backgroundColor: ['#0d9e5c','#e03131','#d97706','#2563eb','#7c3aed'], borderWidth: 0, hoverOffset: 3 }],
+      { cutout: '60%' });
+  });
+}
+
+function openCenterDetail(branch) {
+  const rows = centerLastData.filter(d => d.branch === branch);
+  const paidRows = centerPaidData.filter(d => d.branch === branch && isPaid(d));
+  const statusCounts = counter(rows.filter(d => !isPaid(d)), 'ret_status');
+  const sarList = [...new Set(rows.filter(d=>d.sa_ret && SA_ELIGIBILITY[normName(d.sa_ret)]?.active)
+    .map(d => SA_ELIGIBILITY[normName(d.sa_ret)].displayName))].sort();
+
+  const statusRows = [
+    `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><span>Paid Retention</span><strong style="color:var(--green);">${paidRows.length}</strong></div>`,
+    ...Object.entries(statusCounts).sort((a,b)=>b[1]-a[1])
+      .map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><span>${k||'—'}</span><strong>${v}</strong></div>`)
+  ].join('');
+
+  document.getElementById('mTitle').textContent = `Detail Center — ${BRANCH_NAMES[branch]||branch} (${branch})`;
+  document.getElementById('mBody').innerHTML = `
+    <div class="m-grid">
+      <div class="m-stat"><div class="m-stat-l">Total Siswa</div><div class="m-stat-v">${rows.length}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Paid Retention</div><div class="m-stat-v" style="color:var(--green);">${paidRows.length}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Churned</div><div class="m-stat-v" style="color:var(--red);">${rows.filter(d=>d.ret_status==='Churned').length}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Retention Rate</div><div class="m-stat-v">${rows.length?Math.round(paidRows.length/rows.length*100):0}%</div></div>
+    </div>
+    <div class="m-sec"><div class="m-sec-t">Status Retention Lengkap</div><div class="m-sec-b">${statusRows||'—'}</div></div>
+    <div class="m-sec"><div class="m-sec-t">SAR di Center Ini (${sarList.length})</div><div class="m-sec-b">${sarList.join(', ')||'—'}</div></div>`;
+  document.getElementById('overlay').classList.add('open');
+}
+
+// =====================================================================
+// QA PERFORMANCE PAGE
+// Averages are computed here from CHAT_REVIEW's own per-row "Score /100"
+// (see processQARows) — independent of the workbook's DASHBOARD_SAR tab.
+// Grouped into tiers by average score (Excellent/Good/Needs Dev/Critical),
+// same Tiers/Leaderboard dual view as the SA Performance page.
+// =====================================================================
+const qaAvg = rows => rows.length ? Math.round(rows.reduce((s, d) => s + d.score, 0) / rows.length) : 0;
+const qaScoreColor = score => score >= 85 ? 'var(--green)' : score >= 70 ? 'var(--blue)' : score >= 50 ? 'var(--amber)' : 'var(--red)';
+function qaTierInfo(score) {
+  if (score >= 85) return { label: 'Excellent', pill: 'pill-green' };
+  if (score >= 70) return { label: 'Good',       pill: 'pill-blue' };
+  if (score >= 50) return { label: 'Needs Dev',  pill: 'pill-amber' };
+  return { label: 'Critical', pill: 'pill-red' };
+}
+
+// "Week 9" > "Week 31" as plain strings ('9' > '3'), so anything sorting
+// week labels needs the numeric portion, not localeCompare/default sort.
+const weekSortKey = w => parseInt((w || '').match(/\d+/)?.[0] || '0', 10);
+
+function populateQAFilters() {
+  const months   = [...new Set(QA_ALL.map(d => d.month).filter(Boolean))].sort();
+  const weeks    = [...new Set(QA_ALL.map(d => d.week).filter(Boolean))].sort((a, b) => weekSortKey(a) - weekSortKey(b));
+  const branches = [...new Set(QA_ALL.map(d => d.branch).filter(Boolean))].sort();
+
+  createMultiSelect('qMonthMS',  months,   () => renderQA(), { allLabel: 'Semua Bulan',  unitLabel: 'Bulan' });
+  createMultiSelect('qWeekMS',   weeks,    () => renderQA(), { allLabel: 'Semua Week',   unitLabel: 'Week' });
+  createMultiSelect('qBranchMS', branches, () => renderQA(), { allLabel: 'Semua Branch', unitLabel: 'Branch' });
+}
+
+function renderQA() {
+  if (!QA_ALL.length) return;
+  const moSet = multiSelects['qMonthMS']  ? multiSelects['qMonthMS'].getSelected()  : new Set();
+  const wkSet = multiSelects['qWeekMS']   ? multiSelects['qWeekMS'].getSelected()   : new Set();
+  const brSet = multiSelects['qBranchMS'] ? multiSelects['qBranchMS'].getSelected() : new Set();
+
+  let data = QA_ALL;
+  if (moSet.size) data = data.filter(d => moSet.has(d.month));
+  if (wkSet.size) data = data.filter(d => wkSet.has(d.week));
+  if (brSet.size) data = data.filter(d => brSet.has(d.branch));
+  qaLastData = data;
+
+  document.getElementById('qaNote').textContent =
+    `Rata-rata dihitung langsung dari kolom "Score /100" tiap baris CHAT_REVIEW (bukan dari tab DASHBOARD_SAR sheet), dan otomatis merata-ratakan seluruh minggu yang dipilih jika lebih dari satu week aktif. Tier: Excellent ≥85, Good ≥70, Needs Dev ≥50, Critical <50. ${data.length} review cocok dengan filter saat ini.`;
+
+  // Group per SAR — normalized key so spelling/casing/whitespace variants
+  // of the same name merge into one entry, same convention as SA Performance.
+  const saMap = {};
+  data.forEach(d => {
+    const key = normName(d.sar);
+    if (!saMap[key]) saMap[key] = { key, name: d.sar, rows: [], branches: new Set() };
+    saMap[key].rows.push(d);
+    saMap[key].branches.add(d.branch);
+  });
+  const allSA = Object.values(saMap)
+    .map(sa => ({ ...sa, avg: qaAvg(sa.rows), count: sa.rows.length }))
+    .sort((a, b) => b.avg - a.avg);
+  qaLastSA = allSA;
+
+  const tierDefs = [
+    { cls: 'tier-top',      icon: '🏆', title: 'Excellent', badge: 'Skor ≥ 85',  filter: sa => sa.avg >= 85 },
+    { cls: 'tier-good',     icon: '📈', title: 'Good',       badge: 'Skor 70–84', filter: sa => sa.avg >= 70 && sa.avg < 85 },
+    { cls: 'tier-mid',      icon: '⚠️', title: 'Needs Dev',  badge: 'Skor 50–69', filter: sa => sa.avg >= 50 && sa.avg < 70 },
+    { cls: 'tier-critical', icon: '🚨', title: 'Critical',   badge: 'Skor < 50',  filter: sa => sa.avg < 50 },
+  ];
+
+  const avatarColors = ['#0d9e5c','#2563eb','#e03131','#d97706','#7c3aed','#e8440c','#0891b2','#16a34a'];
+  const qaCard = (sa, i) => {
+    const color = avatarColors[i % avatarColors.length];
+    const initials = sa.name.split(' ').map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
+    const safeKey = sa.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<div class="sa-card">
+      <div class="sa-avatar" style="background:${color};">${initials}</div>
+      <div class="sa-name">${sa.name}</div>
+      <div class="sa-stats">
+        <div class="sa-row"><span>Total review</span><span>${sa.count}</span></div>
+        <div class="sa-row"><span>Rata-rata skor</span><span style="font-weight:800;color:${qaScoreColor(sa.avg)};">${sa.avg}</span></div>
+        <div class="sa-row"><span>Branch</span><span style="font-size:11px;color:var(--text2);">${[...sa.branches].join(', ')}</span></div>
+      </div>
+      <button class="sa-detail-btn" onclick="event.stopPropagation();openQADetail('${safeKey}')">📊 Detail Review</button>
+    </div>`;
+  };
+
+  document.getElementById('qaTiers').innerHTML = tierDefs.map(tier => {
+    const members = allSA.filter(tier.filter);
+    return `<div class="tier-section ${tier.cls}">
+      <div class="tier-header">
+        <div class="tier-header-inner">
+          <span class="tier-icon">${tier.icon}</span>
+          <span class="tier-title">${tier.title}</span>
+        </div>
+        <span class="tier-badge">${tier.badge} · ${members.length} SAR</span>
+      </div>
+      <div class="tier-body">
+        ${members.length
+          ? `<div class="sa-grid">${members.map((sa, i) => qaCard(sa, i)).join('')}</div>`
+          : `<div class="tier-empty">Tidak ada SAR di tier ini untuk periode ini.</div>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  renderQALeaderboard(allSA);
+}
+
+function renderQALeaderboard(allSA) {
+  const rows = [...allSA].sort((a, b) => b.avg - a.avg);
+  document.getElementById('qaLeaderboardBody').innerHTML = rows.map((sa, i) => {
+    const info = qaTierInfo(sa.avg);
+    const safeKey = sa.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<tr onclick="openQADetail('${safeKey}')">
+      <td class="muted">${i + 1}</td>
+      <td><strong>${sa.name}</strong></td>
+      <td class="muted">${[...sa.branches].join(', ')}</td>
+      <td>${sa.count}</td>
+      <td style="color:${qaScoreColor(sa.avg)};font-weight:800;">${sa.avg}</td>
+      <td><span class="pill ${info.pill}">${info.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function setQAView(view) {
+  document.getElementById('qaTiers').style.display = view === 'tiers' ? 'block' : 'none';
+  document.getElementById('qaLeaderboardWrap').style.display = view === 'leaderboard' ? 'block' : 'none';
+  document.getElementById('qaViewTiersBtn').classList.toggle('active', view === 'tiers');
+  document.getElementById('qaViewLeaderboardBtn').classList.toggle('active', view === 'leaderboard');
+}
+
+// Rubric scores are 1-4 per dimension (see the sheet's own note: "Skor 1-4
+// per dimensi") — colored on that scale, separately from the /100 overall.
+function qaRubricColor(score) {
+  if (score === null || score === undefined || isNaN(score)) return 'var(--text3)';
+  if (score >= 4) return 'var(--green)';
+  if (score >= 3) return 'var(--blue)';
+  if (score >= 2) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function openQADetail(key) {
+  const sa = qaLastSA.find(s => s.key === key);
+  if (!sa) return;
+  const info = qaTierInfo(sa.avg);
+  const rows = [...sa.rows].sort((a, b) => weekSortKey(b.week) - weekSortKey(a.week) || (b.date || '').localeCompare(a.date || ''));
+
+  const weekHtml = rows.map((d, i) => {
+    const rubricRows = QA_RUBRIC_FIELDS.map(([fKey, label]) => {
+      const value = d.rubric ? d.rubric[fKey] : null;
+      const display = (value === null || value === undefined || isNaN(value)) ? '—' : value;
+      return `<div class="qa-rubric-row"><span class="qa-rubric-name">${label}</span><strong class="qa-rubric-score" style="color:${qaRubricColor(value)};">${display}</strong></div>`;
+    }).join('');
+
+    const rubricValues = QA_RUBRIC_FIELDS.map(([fKey]) => d.rubric ? d.rubric[fKey] : null).filter(v => v !== null && v !== undefined && !isNaN(v));
+    const rubricTotal = rubricValues.reduce((sum, v) => sum + v, 0);
+    const rubricMax = rubricValues.length * 4;
+
+    const notesHtml = d.notes ? `<div class="qa-notes"><strong>Catatan:</strong><br>${d.notes}</div>` : '';
+
+    return `<div class="qa-week ${i === 0 ? 'open' : ''}">
+      <button type="button" class="qa-week-head" onclick="toggleQAWeek(this)">
+        <span>
+          <span class="qa-week-title">${d.week || 'Week —'}</span>
+          ${d.reviewer ? `<span style="font-size:11px;color:var(--text3);"> · ${d.reviewer}</span>` : ''}
+        </span>
+        <span style="display:flex;align-items:center;gap:10px;">
+          <strong class="qa-week-score" style="color:${qaScoreColor(d.score)};">${d.score}</strong>
+          <span class="qa-week-arrow">▼</span>
+        </span>
+      </button>
+      <div class="qa-week-body">
+        ${d.scenario ? `<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Scenario: ${d.scenario}</div>` : ''}
+        ${rubricRows}
+        <div class="qa-score-summary"><span>Rubric Total</span><strong>${rubricTotal} / ${rubricMax}</strong></div>
+        <div class="qa-score-summary"><span>Score /100</span><strong style="color:${qaScoreColor(d.score)};">${d.score}</strong></div>
+        ${notesHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('mTitle').textContent = `QA Detail — ${sa.name}`;
+  document.getElementById('mBody').innerHTML = `
+    <div class="m-grid">
+      <div class="m-stat"><div class="m-stat-l">Total Review</div><div class="m-stat-v">${sa.count}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Rata-rata Skor</div><div class="m-stat-v" style="color:${qaScoreColor(sa.avg)};">${sa.avg}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Tier</div><div class="m-stat-v"><span class="pill ${info.pill}">${info.label}</span></div></div>
+      <div class="m-stat"><div class="m-stat-l">Branch</div><div class="m-stat-v">${[...sa.branches].join(', ') || '—'}</div></div>
+    </div>
+    <div class="m-sec"><div class="m-sec-t">Detail Score per Week</div><div>${weekHtml || 'Tidak ada review.'}</div></div>`;
+  document.getElementById('overlay').classList.add('open');
+}
+
+function toggleQAWeek(button) {
+  const week = button.closest('.qa-week');
+  if (!week) return;
+  week.classList.toggle('open');
+}
+
+// =====================================================================
+// LANJUT CONVERSION — data + rendering
+// =====================================================================
+// The Apps Script writes to this Google Sheet (HISTORY_SHEET_ID in the GS):
+const LANJUT_LOG_SHEET_ID  = '1sPb9qHpGJpInTMenJorObuDTyOZV6llyP7ktpfWu-2o';
+const LANJUT_LOG_TAB_NAME  = 'Lanjut Retention Log';
+const LANJUT_LOG_CSV = `https://docs.google.com/spreadsheets/d/${LANJUT_LOG_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(LANJUT_LOG_TAB_NAME)}`;
+
+// Header: Phone | Branch Code | SAR | Fill Date | Cycle Expiry Date |
+//         M Label | First Logged Date | Retained | Last Checked Date
+let LANJUT_ALL  = [];   // all parsed log rows
+let lanjutLoaded = false;
+let lanjutView   = 'sar';   // 'sar' | 'branch' | 'log'
+let lanjutSortKey = 'rate';
+let lanjutSortDir = -1;
+let lanjutLogSortKey = 'expiryDate';
+let lanjutLogSortDir = -1;
+let lanjutLogPage = 1;
+const LANJUT_PAGE_SIZE = 60;
+
+function loadLanjutLog() {
+  document.getElementById('lanjutSub').textContent = 'Memuat data log...';
+  document.getElementById('lanjutEmpty').style.display = 'none';
+  withTimeout(
+    done => Papa.parse(LANJUT_LOG_CSV, {
+      download: true, skipEmptyLines: true,
+      complete(res) { done({ ok: true, res }); },
+      error()       { done({ ok: false }); }
+    }),
+    outcome => {
+      if (outcome.timedOut || !outcome.ok) {
+        document.getElementById('lanjutSub').textContent = 'Tidak bisa memuat log — cek sharing settings sheet.';
+        document.getElementById('lanjutEmpty').style.display = 'block';
+        return;
+      }
+      processLanjutRows(outcome.res.data);
+      lanjutLoaded = true;
+      renderLanjut();
+    }
+  );
+}
+
+function processLanjutRows(rows) {
+  LANJUT_ALL = [];
+  if (rows.length < 2) return;
+
+  // Find header row
+  let hIdx = {};
+  let dataStart = 1;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    const joined = rows[i].join('|').toLowerCase();
+    if (joined.includes('phone') && joined.includes('retained')) {
+      rows[i].forEach((h, j) => { if (h.trim()) hIdx[h.trim().toLowerCase()] = j; });
+      dataStart = i + 1;
+      break;
+    }
+  }
+
+  const col = (row, name, fallback) => {
+    const idx = hIdx[name.toLowerCase()];
+    return (idx !== undefined ? row[idx] : row[fallback])?.trim() || '';
+  };
+
+  for (let i = dataStart; i < rows.length; i++) {
+    const row = rows[i];
+    if (row.length < 8) continue;
+    const phone    = col(row, 'phone',              0);
+    const branch   = col(row, 'branch code',        1);
+    const sar      = col(row, 'sar',                2);
+    const fillDate = col(row, 'fill date',          3);
+    const expiry   = col(row, 'cycle expiry date',  4);
+    const mLabel   = col(row, 'm label',            5);
+    const retRaw   = col(row, 'retained',           7);
+    if (!phone && !sar) continue;
+    LANJUT_ALL.push({
+      phone, branch, sar,
+      fillDate, expiry, mLabel,
+      retained: retRaw.toUpperCase() === 'TRUE',
+      expiryDate: parseDateFull(expiry),
+      expiryMonthLabel: extractMonthLabel(expiry),
+    });
+  }
+  console.log(`Lanjut Log: ${LANJUT_ALL.length} entries loaded.`);
+}
+
+// ─── filter state ────────────────────────────────────────────────────────────
+function getLanjutFiltered() {
+  const bSet   = multiSelects['lBranchMS']      ? multiSelects['lBranchMS'].getSelected()      : new Set();
+  const moSet  = multiSelects['lExpiryMonthMS'] ? multiSelects['lExpiryMonthMS'].getSelected() : new Set();
+  const mLabel = document.getElementById('lMLabel').value;
+  return LANJUT_ALL.filter(d =>
+    (!bSet.size  || bSet.has(d.branch)) &&
+    (!moSet.size || moSet.has(d.expiryMonthLabel)) &&
+    (!mLabel     || d.mLabel === mLabel)
+  );
+}
+
+function resetLanjutFilters() {
+  if (multiSelects['lBranchMS'])      multiSelects['lBranchMS'].clear();
+  if (multiSelects['lExpiryMonthMS']) multiSelects['lExpiryMonthMS'].clear();
+  document.getElementById('lMLabel').value = '';
+  document.getElementById('lSearch').value = '';
+  renderLanjut();
+}
+
+function initLanjutFilters() {
+  const branches = [...new Set(LANJUT_ALL.map(d => d.branch).filter(Boolean))].sort();
+  createMultiSelect('lBranchMS', branches, () => renderLanjut(), { allLabel: 'Semua Branch', unitLabel: 'Branch' });
+
+  const months = [...new Set(LANJUT_ALL.map(d => d.expiryMonthLabel).filter(Boolean))]
+    .sort((a, b) => monthLabelToSortKey(b) - monthLabelToSortKey(a));
+  createMultiSelect('lExpiryMonthMS', months, () => renderLanjut(), { allLabel: 'Semua Bulan Expiry', unitLabel: 'Bulan' });
+}
+
+function setLanjutView(view) {
+  lanjutView = view;
+  document.getElementById('lanjutSARView').style.display    = view === 'sar'    ? 'block' : 'none';
+  document.getElementById('lanjutBranchView').style.display = view === 'branch' ? 'block' : 'none';
+  document.getElementById('lanjutLogView').style.display    = view === 'log'    ? 'block' : 'none';
+  ['sar','branch','log'].forEach(v => {
+    const btn = document.getElementById(`lanjutView${v.charAt(0).toUpperCase()+v.slice(1)}Btn`);
+    if (btn) btn.classList.toggle('active', v === view);
+  });
+  if (lanjutLoaded && LANJUT_ALL.length) {
+    const data = getLanjutFiltered();
+    if (view === 'sar')    renderLanjutSAR(data);
+    if (view === 'branch') renderLanjutBranchTable(data);
+    if (view === 'log')    renderLanjutLog();
+  }
+}
+
+// ─── KPI metrics ──────────────────────────────────────────────────────────────
+function renderLanjutMetrics(data) {
+  const total    = data.length;
+  const retained = data.filter(d => d.retained).length;
+  const churned  = total - retained;
+  const rate     = total ? Math.round(retained / total * 100) : 0;
+  const sarsSet  = new Set(data.map(d => d.sar).filter(Boolean));
+  const branchSet= new Set(data.map(d => d.branch).filter(Boolean));
+
+  // M-label breakdown
+  const mLabels = ['M0','M-1','M-2'];
+  const mRates  = mLabels.map(m => {
+    const sub = data.filter(d => d.mLabel === m);
+    const r   = sub.filter(d => d.retained).length;
+    return sub.length ? Math.round(r / sub.length * 100) : null;
+  });
+
+  const rateColor = rate >= 70 ? 'var(--green)' : rate >= 50 ? 'var(--amber)' : 'var(--red)';
+
+  const mSubHtml = mLabels.map((m, i) => mRates[i] === null ? '' :
+    `<div style="display:flex;justify-content:space-between;"><span>${m}</span><span style="font-weight:700;color:${mRates[i]>=70?'var(--green)':mRates[i]>=50?'var(--amber)':'var(--red)'};">${mRates[i]}%</span></div>`
+  ).filter(Boolean).join('');
+
+  document.getElementById('lanjutMetrics').innerHTML = `
+    <div class="mc c-blue fade-in"><div class="mc-icon">📋</div><div class="mc-val">${total.toLocaleString()}</div><div class="mc-label">Total Sinyal Lanjut</div><div class="mc-sub">Siklus dengan NPS "Lanjut"</div></div>
+    <div class="mc c-green fade-in"><div class="mc-icon">✅</div><div class="mc-val">${retained.toLocaleString()}</div>
+      <div class="mc-label">Benar-benar Retained</div>
+      <div class="mc-sub"><div style="font-size:10px;color:var(--text3);margin-top:4px;display:flex;flex-direction:column;gap:2px;">${mSubHtml}</div></div>
+    </div>
+    <div class="mc c-red fade-in"><div class="mc-icon">❌</div><div class="mc-val">${churned.toLocaleString()}</div><div class="mc-label">Tidak Jadi Lanjut</div><div class="mc-sub">${total?Math.round(churned/total*100):0}% dari yang bilang Lanjut</div></div>
+    <div class="mc c-amber fade-in">
+      <div class="mc-icon">🎯</div>
+      <div class="mc-val" style="color:${rateColor};">${rate}%</div>
+      <div class="mc-label">Conversion Rate</div>
+      <div class="mc-sub">Lanjut → Paid Retention</div>
+    </div>
+    <div class="mc c-purple fade-in"><div class="mc-icon">👤</div><div class="mc-val">${sarsSet.size}</div><div class="mc-label">SAR Aktif di Log</div><div class="mc-sub">${branchSet.size} branch terlibat</div></div>`;
+}
+
+// ─── M Label chart ────────────────────────────────────────────────────────────
+function renderLanjutMLabelChart(data) {
+  const mLabels = ['M0','M-1','M-2'];
+  const counts  = mLabels.map(m => data.filter(d => d.mLabel === m).length);
+  const retained= mLabels.map(m => data.filter(d => d.mLabel === m && d.retained).length);
+  const rates   = mLabels.map((m, i) => counts[i] ? Math.round(retained[i] / counts[i] * 100) : 0);
+
+  mkChart('lanjutMLabelChart','bar', mLabels, [
+    { label: 'Total Lanjut', data: counts,   backgroundColor: '#bfdbfe', borderRadius: 5, borderWidth: 0, order: 2 },
+    { label: 'Retained',     data: retained, backgroundColor: '#0d9e5c', borderRadius: 5, borderWidth: 0, order: 2 },
+    { type: 'line', label: 'Conversion %', data: rates, borderColor: '#7c3aed', borderWidth: 2.5,
+      pointRadius: 5, pointBackgroundColor: '#7c3aed', pointBorderColor: '#fff', pointBorderWidth: 2,
+      fill: false, tension: 0, yAxisID: 'yPct', order: 1 },
+  ], {
+    scales: {
+      y:    { beginAtZero: true, ticks: { color: '#9ba3bd' }, grid: { color: 'rgba(0,0,0,0.04)' } },
+      yPct: { position: 'right', min: 0, max: 100, ticks: { color: '#7c3aed', callback: v => v + '%' }, grid: { display: false } },
+      x:    { ticks: { color: '#9ba3bd' }, grid: { display: false } },
+    },
+    plugins: {
+      legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 10, padding: 12 } },
+      tooltip: { callbacks: { label: ctx => ctx.dataset.label === 'Conversion %' ? ` ${ctx.parsed.y}%` : ` ${ctx.dataset.label}: ${ctx.parsed.y}` } }
+    }
+  });
+
+  document.getElementById('lanjutMLabelLeg').innerHTML = mLabels.map((m, i) =>
+    `<span class="leg-item"><span class="leg-dot" style="background:#0d9e5c;"></span>${m}: <strong>${retained[i]}</strong>/${counts[i]} (${rates[i]}%)</span>`
+  ).join('');
+}
+
+// ─── Branch chart ─────────────────────────────────────────────────────────────
+function renderLanjutBranchChart(data) {
+  const branches  = [...new Set(data.map(d => d.branch).filter(Boolean))].sort();
+  const totals    = branches.map(b => data.filter(d => d.branch === b).length);
+  const retains   = branches.map(b => data.filter(d => d.branch === b && d.retained).length);
+  const rates     = branches.map((b, i) => totals[i] ? Math.round(retains[i] / totals[i] * 100) : 0);
+
+  mkChart('lanjutBranchChart', 'bar', branches, [
+    { label: 'Total',    data: totals,  backgroundColor: '#bfdbfe', borderRadius: 4, borderWidth: 0, order: 2 },
+    { label: 'Retained', data: retains, backgroundColor: '#0d9e5c', borderRadius: 4, borderWidth: 0, order: 2 },
+    { type: 'line', label: 'Conv%', data: rates, borderColor: '#e03131', borderWidth: 2,
+      pointRadius: 4, pointBackgroundColor: '#e03131', pointBorderColor: '#fff', pointBorderWidth: 1.5,
+      fill: false, tension: 0.3, yAxisID: 'yPct', order: 1 },
+  ], {
+    scales: {
+      y:    { beginAtZero: true, ticks: { color: '#9ba3bd' }, grid: { color: 'rgba(0,0,0,0.04)' } },
+      yPct: { position: 'right', min: 0, max: 100, ticks: { color: '#e03131', callback: v => v + '%' }, grid: { display: false } },
+      x:    { ticks: { color: '#9ba3bd', font: { size: 11 } }, grid: { display: false } },
+    },
+    plugins: {
+      legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 10, padding: 10 } },
+      tooltip: { callbacks: { label: ctx => ctx.dataset.label === 'Conv%' ? ` ${ctx.parsed.y}%` : ` ${ctx.dataset.label}: ${ctx.parsed.y}` } }
+    }
+  });
+}
+
+// ─── Trend chart (by expiry month) ────────────────────────────────────────────
+function renderLanjutTrendChart(data) {
+  const months = [...new Set(data.map(d => d.expiryMonthLabel).filter(Boolean))]
+    .sort((a, b) => monthLabelToSortKey(a) - monthLabelToSortKey(b));
+  const totals  = months.map(m => data.filter(d => d.expiryMonthLabel === m).length);
+  const retains = months.map(m => data.filter(d => d.expiryMonthLabel === m && d.retained).length);
+  const rates   = months.map((m, i) => totals[i] ? Math.round(retains[i] / totals[i] * 100) : 0);
+
+  mkChart('lanjutTrendChart', 'line', months, [
+    { label: 'Conversion %', data: rates, borderColor: '#0d9e5c', backgroundColor: 'rgba(13,158,92,0.12)',
+      borderWidth: 2.5, pointRadius: 5, pointBackgroundColor: '#0d9e5c', pointBorderColor: '#fff',
+      pointBorderWidth: 2, fill: true, tension: 0.3 },
+    { label: 'Total Lanjut', data: totals, borderColor: '#2563eb', backgroundColor: 'transparent',
+      borderWidth: 1.5, pointRadius: 3, pointBackgroundColor: '#2563eb', fill: false,
+      tension: 0.3, borderDash: [5, 4], yAxisID: 'yCount' },
+  ], {
+    scales: {
+      y:      { min: 0, max: 100, ticks: { color: '#0d9e5c', callback: v => v + '%' }, grid: { color: 'rgba(0,0,0,0.04)' } },
+      yCount: { position: 'right', beginAtZero: true, ticks: { color: '#2563eb' }, grid: { display: false } },
+      x:      { ticks: { color: '#9ba3bd', font: { size: 11 } }, grid: { display: false } },
+    },
+    plugins: {
+      legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 10, padding: 12 } },
+      tooltip: { callbacks: { label: ctx => ctx.dataset.label === 'Conversion %'
+        ? ` ${ctx.parsed.y}% (${retains[ctx.dataIndex]}/${totals[ctx.dataIndex]})`
+        : ` ${ctx.dataset.label}: ${ctx.parsed.y}` } }
+    }
+  });
+}
+
+// ─── Per-SAR cards (SAR view) ────────────────────────────────────────────────
+function renderLanjutSAR(data) {
+  const sarMap = {};
+  data.forEach(d => {
+    if (!d.sar) return;
+    const key = normName(d.sar);
+    if (!sarMap[key]) sarMap[key] = { name: d.sar, total: 0, retained: 0, byM: {}, branches: new Set() };
+    const s = sarMap[key];
+    s.total++;
+    if (d.retained) s.retained++;
+    s.branches.add(d.branch);
+    if (!s.byM[d.mLabel]) s.byM[d.mLabel] = { total: 0, retained: 0 };
+    s.byM[d.mLabel].total++;
+    if (d.retained) s.byM[d.mLabel].retained++;
+  });
+
+  const sars = Object.values(sarMap).map(s => ({
+    ...s,
+    rate: s.total ? Math.round(s.retained / s.total * 100) : 0,
+    key: normName(s.name),
+  })).sort((a, b) => {
+    if (lanjutSortKey === 'rate')     return lanjutSortDir * (b.rate - a.rate);
+    if (lanjutSortKey === 'total')    return lanjutSortDir * (b.total - a.total);
+    if (lanjutSortKey === 'retained') return lanjutSortDir * (b.retained - a.retained);
+    return 0;
+  });
+
+  const note = document.getElementById('lanjutNote');
+  if (!sars.length) {
+    note.style.display = 'block';
+    note.textContent = 'Tidak ada SAR dengan data Lanjut di filter ini.';
+    document.getElementById('lanjutSARGrid').innerHTML = '';
+    return;
+  }
+  note.style.display = 'none';
+
+  const avatarColors = ['#0d9e5c','#2563eb','#7c3aed','#d97706','#e03131','#0891b2','#84cc16'];
+
+  document.getElementById('lanjutSARGrid').innerHTML = sars.map((s, idx) => {
+    const rateColor = s.rate >= 70 ? 'var(--green)' : s.rate >= 50 ? 'var(--amber)' : 'var(--red)';
+    const mRows = ['M0','M-1','M-2'].map(m => {
+      const mb = s.byM[m];
+      if (!mb || !mb.total) return '';
+      const mr = Math.round(mb.retained / mb.total * 100);
+      return `<div class="sa-row"><span>${m}</span><span style="color:${mr>=70?'var(--green)':mr>=50?'var(--amber)':'var(--red)'};">${mb.retained}/${mb.total} (${mr}%)</span></div>`;
+    }).filter(Boolean).join('');
+
+    const initials = s.name.split(/[\s-]/)[0].slice(0, 2).toUpperCase();
+    const bgColor  = avatarColors[idx % avatarColors.length];
+
+    return `<div class="sa-card fade-in">
+      <div class="sa-avatar" style="background:${bgColor};">${initials}</div>
+      <div class="sa-name">${s.name}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">${[...s.branches].sort().join(', ')}</div>
+      <div style="font-family:'DM Sans',sans-serif;font-size:28px;font-weight:800;color:${rateColor};letter-spacing:-1px;margin-bottom:4px;">${s.rate}%</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Conversion Rate (${s.retained}/${s.total})</div>
+      <div class="sa-stats">${mRows || '<div class="sa-row"><span style="color:var(--text3);">Tidak ada breakdown M label</span></div>'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Per-Branch table ─────────────────────────────────────────────────────────
+function lanjutSortBy(key) {
+  if (lanjutSortKey === key) lanjutSortDir *= -1;
+  else { lanjutSortKey = key; lanjutSortDir = -1; }
+  renderLanjutBranchTable(getLanjutFiltered());
+}
+
+function renderLanjutBranchTable(data) {
+  const branches = [...new Set(data.map(d => d.branch).filter(Boolean))].sort();
+  const rows = branches.map(b => {
+    const sub  = data.filter(d => d.branch === b);
+    const ret  = sub.filter(d => d.retained).length;
+    const rate = sub.length ? Math.round(ret / sub.length * 100) : 0;
+    const mRate = m => {
+      const ms = sub.filter(d => d.mLabel === m);
+      return ms.length ? Math.round(ms.filter(d => d.retained).length / ms.length * 100) : null;
+    };
+    return { branch: b, total: sub.length, retained: ret, churned: sub.length - ret, rate, m0: mRate('M0'), m1: mRate('M-1'), m2: mRate('M-2') };
+  });
+
+  rows.sort((a, b) => {
+    const av = a[lanjutSortKey] ?? -1, bv = b[lanjutSortKey] ?? -1;
+    if (typeof av === 'string') return lanjutSortDir * av.localeCompare(bv);
+    return lanjutSortDir * (av - bv);
+  });
+
+  const mPill = v => {
+    if (v === null) return '<span style="color:var(--text3);">—</span>';
+    const c = v >= 70 ? 'pill-green' : v >= 50 ? 'pill-amber' : 'pill-red';
+    return `<span class="pill ${c}">${v}%</span>`;
+  };
+
+  document.getElementById('lanjutBranchBody').innerHTML = rows.map(r => `<tr>
+    <td><strong>${r.branch}</strong> <span style="font-size:11px;color:var(--text3);">${BRANCH_NAMES[r.branch]||''}</span></td>
+    <td>${r.total}</td>
+    <td style="color:var(--green);font-weight:700;">${r.retained}</td>
+    <td style="color:var(--red);font-weight:700;">${r.churned}</td>
+    <td>${mPill(r.rate)}</td>
+    <td>${mPill(r.m0)}</td>
+    <td>${mPill(r.m1)}</td>
+    <td>${mPill(r.m2)}</td>
+  </tr>`).join('');
+}
+
+// ─── Raw log table ────────────────────────────────────────────────────────────
+function lanjutLogSort(key) {
+  if (lanjutLogSortKey === key) lanjutLogSortDir *= -1;
+  else { lanjutLogSortKey = key; lanjutLogSortDir = -1; }
+  lanjutLogPage = 1;
+  renderLanjutLog();
+}
+
+function renderLanjutLog() {
+  const q = (document.getElementById('lSearch')?.value || '').toLowerCase();
+  let rows = LANJUT_ALL.filter(d =>
+    !q || d.phone.includes(q) || (d.sar || '').toLowerCase().includes(q) || (d.branch || '').toLowerCase().includes(q)
+  );
+
+  rows.sort((a, b) => {
+    if (lanjutLogSortKey === 'expiryDate') {
+      const av = a.expiryDate?.getTime() ?? 0, bv = b.expiryDate?.getTime() ?? 0;
+      return lanjutLogSortDir * (bv - av);
+    }
+    const av = a[lanjutLogSortKey] || '', bv = b[lanjutLogSortKey] || '';
+    if (lanjutLogSortKey === 'retained') return lanjutLogSortDir * ((b.retained ? 1 : 0) - (a.retained ? 1 : 0));
+    return lanjutLogSortDir * av.localeCompare(bv);
+  });
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / LANJUT_PAGE_SIZE));
+  if (lanjutLogPage > totalPages) lanjutLogPage = 1;
+  const start = (lanjutLogPage - 1) * LANJUT_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + LANJUT_PAGE_SIZE);
+
+  document.getElementById('lanjutLogBody').innerHTML = pageRows.map(d => {
+    const retPill = d.retained
+      ? `<span class="pill pill-green">✅ Retained</span>`
+      : `<span class="pill pill-red">❌ Churn</span>`;
+    const mColor = d.mLabel === 'M0' ? 'var(--green)' : d.mLabel === 'M-1' ? 'var(--blue)' : 'var(--amber)';
+    return `<tr>
+      <td class="muted" style="font-size:12px;">${d.phone}</td>
+      <td><strong>${d.branch}</strong></td>
+      <td>${d.sar || '—'}</td>
+      <td class="muted">${d.fillDate || '—'}</td>
+      <td class="muted">${d.expiry || '—'}</td>
+      <td><span class="pill pill-blue" style="background:transparent;color:${mColor};border:1.5px solid ${mColor};">${d.mLabel || '—'}</span></td>
+      <td>${retPill}</td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  const end = Math.min(lanjutLogPage * LANJUT_PAGE_SIZE, rows.length);
+  const range = [];
+  for (let i = Math.max(1, lanjutLogPage - 2); i <= Math.min(totalPages, lanjutLogPage + 2); i++) range.push(i);
+  let btns = '';
+  if (range[0] > 1) { btns += `<button class="pag-btn" onclick="lanjutLogGoPage(1)">1</button>`; if (range[0] > 2) btns += `<span style="padding:0 4px;color:var(--text3)">…</span>`; }
+  range.forEach(i => { btns += `<button class="pag-btn ${i === lanjutLogPage ? 'active' : ''}" onclick="lanjutLogGoPage(${i})">${i}</button>`; });
+  if (range[range.length-1] < totalPages) { if (range[range.length-1] < totalPages-1) btns += `<span style="padding:0 4px;color:var(--text3)">…</span>`; btns += `<button class="pag-btn" onclick="lanjutLogGoPage(${totalPages})">${totalPages}</button>`; }
+
+  document.getElementById('lanjutLogPag').innerHTML = `
+    <span class="pag-info">${start+1}–${end} dari ${rows.length.toLocaleString()}</span>
+    <div class="pag-btns">
+      <button class="pag-btn" onclick="lanjutLogGoPage(${lanjutLogPage-1})" ${lanjutLogPage===1?'disabled':''}>‹</button>
+      ${btns}
+      <button class="pag-btn" onclick="lanjutLogGoPage(${lanjutLogPage+1})" ${lanjutLogPage===totalPages?'disabled':''}>›</button>
+    </div>`;
+}
+
+function lanjutLogGoPage(p) {
+  lanjutLogPage = p;
+  renderLanjutLog();
+  window.scrollTo(0, document.getElementById('lanjutLogView').offsetTop - 80);
+}
+
+// Filters are initialized in renderLanjut on first call
+let lanjutFiltersInited = false;
+
+function renderLanjut() {
+  if (!lanjutLoaded || !LANJUT_ALL.length) {
+    document.getElementById('lanjutEmpty').style.display = 'block';
+    document.getElementById('lanjutSub').textContent = 'Belum ada data.';
+    return;
+  }
+  document.getElementById('lanjutEmpty').style.display = 'none';
+
+  if (!lanjutFiltersInited) {
+    initLanjutFilters();
+    lanjutFiltersInited = true;
+  }
+
+  const data = getLanjutFiltered();
+
+  renderLanjutMetrics(data);
+  renderLanjutMLabelChart(data);
+  renderLanjutBranchChart(data);
+  renderLanjutTrendChart(data);
+
+  document.getElementById('lanjutSub').textContent =
+    `${LANJUT_ALL.length.toLocaleString()} entri log · ${data.length.toLocaleString()} setelah filter`;
+
+  if (lanjutView === 'sar')    renderLanjutSAR(data);
+  if (lanjutView === 'branch') renderLanjutBranchTable(data);
+  if (lanjutView === 'log')    renderLanjutLog();
+}
+
+// =====================================================================
+// FILE UPLOAD FALLBACK
+// =====================================================================
+function showUploadFallback(msg) {
+  setLoading(0);
+  document.getElementById('dbSub').textContent = msg;
+  document.getElementById('uploadSection').style.display = 'block';
+}
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag');
+  if (e.dataTransfer.files[0]) parseCSV(e.dataTransfer.files[0]);
+}
+function handleFile(input) { if (input.files[0]) parseCSV(input.files[0]); }
+function parseCSV(file) {
+  setLoading(20);
+  Papa.parse(file, {
+    skipEmptyLines:true,
+    complete(res) { processMainRows(res.data); },
+    error()       { alert('Gagal membaca file CSV.'); }
+  });
+}
+
+// =====================================================================
+// PAGE NAVIGATION
+// =====================================================================
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.topbar .top-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id==='students' && ALL.length) renderTable();
+  if (id==='sa'       && ALL.length) renderSA();
+  if (id==='center'   && ALL.length) renderCenterPerf();
+  if (id==='qa'       && QA_ALL.length) renderQA();
+  if (id==='lanjut') { if (!lanjutLoaded) loadLanjutLog(); else renderLanjut(); }
+}
+
+// =====================================================================
+// BOOT
+// =====================================================================
+window.addEventListener('DOMContentLoaded', () => {
+  loadAll();
+  // Auto-refresh every 5 minutes
+  setInterval(loadAll, 5 * 60 * 1000);
+});
+</script>
+</body>
+</html>
