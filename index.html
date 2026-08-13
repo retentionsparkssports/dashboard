@@ -505,6 +505,9 @@ td.muted{color:var(--text2);}
   <!-- KPI metrics row -->
   <div class="mg" id="lanjutMetrics" style="grid-template-columns:repeat(5,1fr);"></div>
 
+  <!-- Status breakdown (all statuses from column U, categorized) -->
+  <div class="cc" style="margin-bottom:20px;" id="lanjutStatusBreakdown"></div>
+
   <!-- M Label breakdown + Branch doughnut -->
   <div class="cg2" style="margin-bottom:20px;">
     <div class="cc">
@@ -2196,7 +2199,10 @@ function openModal(idx) {
     ${d.exp_payment&&!d.exp_payment.startsWith('#')?`<div class="m-sec"><div class="m-sec-t">Expected Payment</div><div class="m-sec-b">${d.exp_payment}</div></div>`:''}`;
   document.getElementById('overlay').classList.add('open');
 }
-function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  document.querySelector('.modal').style.maxWidth = ''; // reset any per-modal width override
+}
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
 
 // =====================================================================
@@ -2562,12 +2568,13 @@ function processLanjutRows(rows) {
 
   const col = (row, name, fallback) => {
     const idx = hIdx[name.toLowerCase()];
-    return (idx !== undefined ? row[idx] : row[fallback])?.trim() || '';
+    return (idx !== undefined ? row[idx] : (fallback !== undefined ? row[fallback] : undefined))?.trim() || '';
   };
 
   for (let i = dataStart; i < rows.length; i++) {
     const row = rows[i];
     if (row.length < 8) continue;
+    const name     = col(row, 'name');
     const phone    = col(row, 'phone',              0);
     const branch   = col(row, 'branch code',        1);
     const sar      = col(row, 'sar',                2);
@@ -2575,16 +2582,43 @@ function processLanjutRows(rows) {
     const expiry   = col(row, 'cycle expiry date',  4);
     const mLabel   = col(row, 'm label',            5);
     const retRaw   = col(row, 'retained',           7);
+    const status   = col(row, 'retention status');
+    const class1   = col(row, 'class 1');
+    const class2   = col(row, 'class 2');
     if (!phone && !sar) continue;
     LANJUT_ALL.push({
-      phone, branch, sar,
+      name, phone, branch, sar,
       fillDate, expiry, mLabel,
       retained: retRaw.toUpperCase() === 'TRUE',
+      status, class1, class2,
+      statusInfo: categorizeLanjutStatus(status),
       expiryDate: parseDateFull(expiry),
       expiryMonthLabel: extractMonthLabel(expiry),
     });
   }
   console.log(`Lanjut Log: ${LANJUT_ALL.length} entries loaded.`);
+}
+
+// ─── retention status categorization ───────────────────────────────────────
+// Matches the color-coded status set used on the retention dashboards
+// (column U). Anything not recognized falls into an 'other' bucket rather
+// than being dropped, so new/unexpected statuses stay visible.
+const LANJUT_STATUS_MAP = {
+  'paid retention':      { category: 'paid',      label: 'Paid Retention',      color: '#0b6e3f' },
+  'paid retention - dp': { category: 'paid',      label: 'Paid Retention - DP', color: '#7fd8a3' },
+  'paid - cicil':        { category: 'paid',      label: 'Paid - Cicil',        color: '#2563eb' },
+  'churned':             { category: 'churned',   label: 'Churned',             color: '#c0392b' },
+  'confirmed to churn (still possible to retain)': { category: 'at_risk',  label: 'Confirmed to Churn (recoverable)', color: '#f5a3a3' },
+  'confirmed to retain (not paid yet)':            { category: 'pending',  label: 'Confirmed to Retain (unpaid)',     color: '#f2c94c' },
+  'not yet been asked':  { category: 'pending',    label: 'Not Yet Asked',       color: '#3b3f4a' },
+  'asked - still no response': { category: 'pending', label: 'Asked - No Response', color: '#5a6079' },
+  'still unsure':         { category: 'undecided', label: 'Still Unsure',        color: '#e08a3c' },
+  'move to other center': { category: 'transferred', label: 'Move to Other Center', color: '#7c3aed' },
+  'drop - unpaid installment': { category: 'dropped', label: 'Drop - Unpaid Installment', color: '#0f766e' },
+};
+function categorizeLanjutStatus(status) {
+  const key = (status || '').trim().toLowerCase();
+  return LANJUT_STATUS_MAP[key] || { category: 'other', label: status || 'Unknown', color: '#9ba3bd' };
 }
 
 // ─── filter state ────────────────────────────────────────────────────────────
@@ -2658,11 +2692,11 @@ function renderLanjutMetrics(data) {
 
   document.getElementById('lanjutMetrics').innerHTML = `
     <div class="mc c-blue fade-in"><div class="mc-icon">📋</div><div class="mc-val">${total.toLocaleString()}</div><div class="mc-label">Total Sinyal Lanjut</div><div class="mc-sub">Siklus dengan NPS "Lanjut"</div></div>
-    <div class="mc c-green fade-in"><div class="mc-icon">✅</div><div class="mc-val">${retained.toLocaleString()}</div>
+    <div class="mc c-green fade-in" style="cursor:pointer;" onclick="openLanjutDetailModal(true)" title="Klik untuk lihat detail"><div class="mc-icon">✅</div><div class="mc-val">${retained.toLocaleString()}</div>
       <div class="mc-label">Benar-benar Retained</div>
       <div class="mc-sub"><div style="font-size:10px;color:var(--text3);margin-top:4px;display:flex;flex-direction:column;gap:2px;">${mSubHtml}</div></div>
     </div>
-    <div class="mc c-red fade-in"><div class="mc-icon">❌</div><div class="mc-val">${churned.toLocaleString()}</div><div class="mc-label">Tidak Jadi Lanjut</div><div class="mc-sub">${total?Math.round(churned/total*100):0}% dari yang bilang Lanjut</div></div>
+    <div class="mc c-red fade-in" style="cursor:pointer;" onclick="openLanjutDetailModal(false)" title="Klik untuk lihat detail"><div class="mc-icon">❌</div><div class="mc-val">${churned.toLocaleString()}</div><div class="mc-label">Churned / Undecided</div><div class="mc-sub">${total?Math.round(churned/total*100):0}% dari yang bilang Lanjut</div></div>
     <div class="mc c-amber fade-in">
       <div class="mc-icon">🎯</div>
       <div class="mc-val" style="color:${rateColor};">${rate}%</div>
@@ -2670,6 +2704,104 @@ function renderLanjutMetrics(data) {
       <div class="mc-sub">Lanjut → Paid Retention</div>
     </div>
     <div class="mc c-purple fade-in"><div class="mc-icon">👤</div><div class="mc-val">${sarsSet.size}</div><div class="mc-label">SAR Aktif di Log</div><div class="mc-sub">${branchSet.size} branch terlibat</div></div>`;
+
+  renderLanjutStatusBreakdown(data);
+}
+
+// ─── retention status breakdown (categorizes ALL statuses, not just paid/not) ──
+function renderLanjutStatusBreakdown(data) {
+  const el = document.getElementById('lanjutStatusBreakdown');
+  if (!el) return;
+
+  const total = data.length;
+  const counts = {}; // status label -> { count, color, category }
+  data.forEach(d => {
+    const info = d.statusInfo || categorizeLanjutStatus(d.status);
+    const key = info.label;
+    if (!counts[key]) counts[key] = { count: 0, color: info.color, category: info.category };
+    counts[key].count++;
+  });
+
+  const rows = Object.entries(counts).sort((a, b) => b[1].count - a[1].count);
+
+  if (!rows.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <div class="cc-head"><div><div class="cc-title">Breakdown per Status Retensi</div><div class="cc-sub">Semua status dari kolom U, dikategorikan</div></div></div>
+    <div class="bl">
+      ${rows.map(([label, v]) => {
+        const pct = total ? Math.round(v.count / total * 100) : 0;
+        return `<div class="br">
+          <div class="br-label" style="width:220px;" title="${label}">${label}</div>
+          <div class="br-track"><div class="br-fill" style="width:${pct}%;background:${v.color};"></div></div>
+          <div class="br-val">${v.count.toLocaleString()} (${pct}%)</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ─── clickable detail popup: names behind "Retained" / "Churned/Undecided" ──
+// The SAR filter inside this popup is scoped to whatever's ALREADY selected
+// via the main branch filter, since lanjutModalRows comes straight out of
+// getLanjutFiltered() (which already applies the branch multi-select) before
+// the retained/not-retained split is applied.
+let lanjutModalRows = [];
+let lanjutModalSarFilter = '';
+
+function openLanjutDetailModal(retainedValue) {
+  lanjutModalRows = getLanjutFiltered().filter(d => d.retained === retainedValue);
+  lanjutModalSarFilter = '';
+
+  document.getElementById('mTitle').textContent = retainedValue
+    ? 'Detail — Benar-benar Retained'
+    : 'Detail — Churned / Undecided';
+
+  renderLanjutModalBody();
+  document.querySelector('.modal').style.maxWidth = '820px';
+  document.getElementById('overlay').classList.add('open');
+}
+
+function renderLanjutModalBody() {
+  const sars = [...new Set(lanjutModalRows.map(d => d.sar).filter(Boolean))].sort();
+  const filtered = lanjutModalSarFilter
+    ? lanjutModalRows.filter(d => d.sar === lanjutModalSarFilter)
+    : lanjutModalRows;
+
+  const rowsHtml = filtered.length ? filtered.map(d => {
+    const info = d.statusInfo || categorizeLanjutStatus(d.status);
+    const kelas = [d.class1, d.class2].filter(Boolean).join(', ');
+    return `<tr>
+      <td><strong>${d.name || '—'}</strong></td>
+      <td class="muted" style="font-size:12px;">${d.phone || '—'}</td>
+      <td class="muted">${d.expiry || '—'}</td>
+      <td>${d.sar || '—'}</td>
+      <td class="muted">${kelas || '—'}</td>
+      <td><span class="pill" style="background:${info.color}22;color:${info.color};">${info.label}</span></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px;">Tidak ada data untuk filter ini.</td></tr>`;
+
+  document.getElementById('mBody').innerHTML = `
+    <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="fl">FILTER SAR</span>
+      <select id="lanjutModalSarSelect" onchange="lanjutModalSetSar(this.value)">
+        <option value="">Semua SAR (${lanjutModalRows.length})</option>
+        ${sars.map(s => `<option value="${s.replace(/"/g,'&quot;')}" ${s===lanjutModalSarFilter?'selected':''}>${s} (${lanjutModalRows.filter(d=>d.sar===s).length})</option>`).join('')}
+      </select>
+      <span style="font-size:12px;color:var(--text3);margin-left:auto;">${filtered.length.toLocaleString()} orang</span>
+    </div>
+    <div class="table-wrap" style="max-height:50vh;overflow-y:auto;">
+      <table style="min-width:640px;">
+        <thead><tr>
+          <th>Nama Siswa</th><th>No. HP</th><th>Last Membership</th><th>SAR</th><th>Kelas</th><th>Status</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+function lanjutModalSetSar(sar) {
+  lanjutModalSarFilter = sar;
+  renderLanjutModalBody();
 }
 
 // ─── M Label chart ────────────────────────────────────────────────────────────
