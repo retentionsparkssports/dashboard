@@ -167,10 +167,6 @@ td.muted{color:var(--text2);}
 .qa-rubric-score{min-width:28px;text-align:center;font-size:12px;font-weight:800;}
 .qa-score-summary{display:flex;justify-content:space-between;margin-top:10px;padding-top:9px;border-top:1px solid var(--border);font-size:11px;color:var(--text2);}
 .qa-notes{margin-top:10px;padding:9px 10px;background:var(--surface);border-radius:8px;font-size:11px;color:var(--text2);line-height:1.5;}
-#qaLeaderboardWrap .table-wrap{overflow-x:auto;}
-#qaLeaderboardWrap table{min-width:1200px;}
-#qaLeaderboardWrap th,#qaLeaderboardWrap td{white-space:nowrap;}
-#qaLeaderboardWrap td:nth-child(n+5):nth-child(-n+10),#qaLeaderboardWrap th:nth-child(n+5):nth-child(-n+10){text-align:center;}
 /* SEARCH */
 .search-wrap{position:relative;flex:1;max-width:260px;}
 .search-wrap input{width:100%;padding:7px 12px 7px 32px;background-image:none!important;}
@@ -230,6 +226,7 @@ td.muted{color:var(--text2);}
     <button class="top-tab" onclick="showPage('sa',this)">SA Performance</button>
     <button class="top-tab" onclick="showPage('center',this)">Per Center</button>
     <button class="top-tab" onclick="showPage('qa',this)">QA Performance</button>
+    <button class="top-tab" onclick="showPage('lanjut',this)">🔄 Lanjut Conversion</button>
   </div>
 </nav>
 
@@ -439,7 +436,7 @@ td.muted{color:var(--text2);}
   <div class="ph">
     <div class="ph-left">
       <div class="ph-title">QA Performance</div>
-      <div class="ph-sub">Rata-rata skor QA chat review per SAR + jumlah chats reviewed</div>
+      <div class="ph-sub">Rata-rata skor QA chat review per SAR</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <div style="display:flex;background:var(--surface2);border-radius:10px;padding:3px;">
@@ -462,13 +459,7 @@ td.muted{color:var(--text2);}
               <th>#</th>
               <th>Nama</th>
               <th>Center</th>
-              <th>Chats Reviewed</th>
-              <th>A1</th>
-              <th>A2</th>
-              <th>A3</th>
-              <th>A4</th>
-              <th>A5</th>
-              <th>A6</th>
+              <th>Total Review</th>
               <th>Rata-rata Skor</th>
               <th>Tier</th>
             </tr>
@@ -477,6 +468,129 @@ td.muted{color:var(--text2);}
         </table>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- LANJUT CONVERSION PAGE -->
+<div class="page" id="page-lanjut">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-title">Lanjut Conversion</div>
+      <div class="ph-sub" id="lanjutSub">Memuat data log retensi...</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;background:var(--surface2);border-radius:10px;padding:3px;">
+        <button class="top-tab active" id="lanjutViewSARBtn" onclick="setLanjutView('sar')" style="padding:6px 14px;">Per SAR</button>
+        <button class="top-tab" id="lanjutViewBranchBtn" onclick="setLanjutView('branch')" style="padding:6px 14px;">Per Branch</button>
+        <button class="top-tab" id="lanjutViewLogBtn" onclick="setLanjutView('log')" style="padding:6px 14px;">Raw Log</button>
+      </div>
+      <button class="upload-btn" onclick="loadLanjutLog()" style="font-size:12px;padding:7px 16px;background:var(--blue);">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <span class="fl">Filter</span>
+    <div class="ms-wrap" id="lBranchMS"></div>
+    <div class="ms-wrap" id="lExpiryMonthMS"></div>
+    <select id="lMLabel" onchange="renderLanjut()">
+      <option value="">Semua M Label</option>
+      <option value="M0">M0</option>
+      <option value="M-1">M-1</option>
+      <option value="M-2">M-2</option>
+    </select>
+    <div class="fd"></div>
+    <button class="reset-btn" onclick="resetLanjutFilters()">Reset</button>
+  </div>
+
+  <!-- KPI metrics row -->
+  <div class="mg" id="lanjutMetrics" style="grid-template-columns:repeat(5,1fr);"></div>
+
+  <!-- Status breakdown (all statuses from column U, categorized) -->
+  <div class="cc" style="margin-bottom:20px;" id="lanjutStatusBreakdown"></div>
+
+  <!-- M Label breakdown + Branch doughnut -->
+  <div class="cg2" style="margin-bottom:20px;">
+    <div class="cc">
+      <div class="cc-head"><div><div class="cc-title">Conversion Rate per M Label</div><div class="cc-sub">% retained dari yang bilang Lanjut, per waktu pengisian NPS relatif ke expiry</div></div></div>
+      <div class="cw" style="height:240px;"><canvas id="lanjutMLabelChart"></canvas></div>
+      <div class="leg" id="lanjutMLabelLeg" style="margin-top:10px;"></div>
+    </div>
+    <div class="cc">
+      <div class="cc-head"><div><div class="cc-title">Conversion Rate per Branch</div><div class="cc-sub">% yang benar-benar bayar dari yang Lanjut, per center</div></div></div>
+      <div class="cw" style="height:240px;"><canvas id="lanjutBranchChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Trend over time (by expiry month) -->
+  <div class="cc" style="margin-bottom:20px;">
+    <div class="cc-head"><div><div class="cc-title">Tren Conversion Rate per Bulan Expiry</div><div class="cc-sub">Dari semua siklus yang ada sinyal "Lanjut", berapa % yang benar-benar retained — per bulan expiry membership</div></div></div>
+    <div class="cw" style="height:240px;"><canvas id="lanjutTrendChart"></canvas></div>
+  </div>
+
+  <!-- Per-SAR tier view -->
+  <div id="lanjutSARView">
+    <div class="sa-note" id="lanjutNote" style="display:none;"></div>
+    <div class="sa-grid" id="lanjutSARGrid"></div>
+  </div>
+
+  <!-- Per-Branch view -->
+  <div id="lanjutBranchView" style="display:none;">
+    <div class="cc">
+      <div class="table-wrap">
+        <table style="min-width:600px;">
+          <thead>
+            <tr>
+              <th onclick="lanjutSortBy('branch')">Branch ↕</th>
+              <th onclick="lanjutSortBy('total')">Total Lanjut ↕</th>
+              <th onclick="lanjutSortBy('retained')">Retained ↕</th>
+              <th onclick="lanjutSortBy('churned')">Churn ↕</th>
+              <th onclick="lanjutSortBy('rate')">Conversion % ↕</th>
+              <th>M0 Rate</th>
+              <th>M-1 Rate</th>
+              <th>M-2 Rate</th>
+            </tr>
+          </thead>
+          <tbody id="lanjutBranchBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Raw log view -->
+  <div id="lanjutLogView" style="display:none;">
+    <div class="cc">
+      <div style="margin-bottom:10px;">
+        <div class="search-wrap" style="max-width:300px;">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="lSearch" placeholder="Cari nomor / SAR..." oninput="renderLanjutLog()" style="width:100%;"/>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table style="min-width:800px;">
+          <thead>
+            <tr>
+              <th onclick="lanjutLogSort('phone')">Phone ↕</th>
+              <th onclick="lanjutLogSort('branchCode')">Branch ↕</th>
+              <th onclick="lanjutLogSort('sar')">SAR ↕</th>
+              <th onclick="lanjutLogSort('fillDate')">Fill Date ↕</th>
+              <th onclick="lanjutLogSort('expiryDate')">Cycle Expiry ↕</th>
+              <th onclick="lanjutLogSort('mLabel')">M Label ↕</th>
+              <th onclick="lanjutLogSort('retained')">Retained ↕</th>
+            </tr>
+          </thead>
+          <tbody id="lanjutLogBody"></tbody>
+        </table>
+      </div>
+      <div class="pag" id="lanjutLogPag"></div>
+    </div>
+  </div>
+
+  <!-- Empty / loading state -->
+  <div id="lanjutEmpty" style="display:none;text-align:center;padding:60px 20px;color:var(--text3);">
+    <div style="font-size:40px;margin-bottom:12px;">📋</div>
+    <div style="font-size:16px;font-weight:700;color:var(--text2);margin-bottom:6px;">Belum ada data log</div>
+    <div style="font-size:13px;">Klik Refresh untuk memuat data dari "Lanjut Retention Log"</div>
   </div>
 </div>
 
@@ -542,16 +656,8 @@ const SAR_PUB_CSV = `https://docs.google.com/spreadsheets/d/${SAR_SHEET_ID}/pub?
 // we read that per-row score directly and average it ourselves rather than
 // trusting the workbook's own DASHBOARD_SAR aggregation tab.
 const QA_SHEET_ID  = '1SoXosWtIzTMht1rhzB-NEXDqrf9O64gEhfNbRT7OV8o';
-// CHAT_REVIEW = scored QA rows used for A1-A6 and Score /100.
 const QA_SHEET_GID = '283821924';
 const QA_CSV = `https://docs.google.com/spreadsheets/d/${QA_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${QA_SHEET_GID}`;
-
-// QA_SAMPLING = every sampled/reviewed chat row.
-// IMPORTANT: Chats Reviewed is counted by how many times Nama SAR appears
-// for the selected Week (and Month/Branch filters), regardless of whether
-// that row has a completed Score /100.
-const QA_SAMPLING_GID = '1398177538';
-const QA_SAMPLING_CSV = `https://docs.google.com/spreadsheets/d/${QA_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${QA_SAMPLING_GID}`;
 
 // =====================================================================
 // STATE
@@ -596,13 +702,10 @@ let centerLastData = [];
 let centerPaidData = [];
 
 // QA Chat Review state
-let QA_ALL = [];       // all scored QA review rows from CHAT_REVIEW
-let QA_CHAT_ALL = [];  // every sampled/reviewed chat row from QA_SAMPLING
+let QA_ALL = [];       // all scored QA review rows
 let qaLoaded = false;
-let qaChatLoaded = false;
-let qaLastData = [];   // filtered scored rows behind the current QA page render
-let qaLastChatData = []; // filtered QA_SAMPLING rows behind current QA page render
-let qaLastSA = [];      // per-SAR aggregates behind the current QA page render
+let qaLastData = [];   // filtered rows behind the current QA page render (for the detail modal)
+let qaLastSA = [];      // per-SAR aggregates (name, rows, avg, branches) behind the current QA page render
 
 // =====================================================================
 // DATE HELPERS
@@ -808,7 +911,6 @@ function loadSARSheet() {
 // QA Chat Review sheet — loaded independently of the main/SAR sheets (own
 // workbook, no shared fields needed), so it doesn't gate tryRender().
 function loadQASheet() {
-  // Load scored CHAT_REVIEW rows.
   withTimeout(
     done => Papa.parse(QA_CSV, {
       download: true, skipEmptyLines: true,
@@ -818,34 +920,15 @@ function loadQASheet() {
     outcome => {
       qaLoaded = true;
       if (outcome.timedOut) {
-        console.warn(`CHAT_REVIEW fetch timed out after ${LOAD_TIMEOUT_MS/1000}s.`);
-      } else if (outcome.ok) {
-        processQARows(outcome.res.data);
-        populateQAFilters();
-      } else {
-        console.warn('CHAT_REVIEW sheet failed to load.');
+        console.warn(`QA sheet fetch timed out after ${LOAD_TIMEOUT_MS/1000}s — check the QA workbook's sharing settings ("Anyone with the link").`);
+        return;
       }
-      if (document.getElementById('page-qa').classList.contains('active')) renderQA();
-    }
-  );
-
-  // Load QA_SAMPLING independently. This sheet is the source of truth for
-  // Chats Reviewed: one non-empty Nama SAR row = one reviewed chat.
-  withTimeout(
-    done => Papa.parse(QA_SAMPLING_CSV, {
-      download: true, skipEmptyLines: true,
-      complete(res) { done({ ok: true, res }); },
-      error()       { done({ ok: false }); }
-    }),
-    outcome => {
-      qaChatLoaded = true;
-      if (outcome.timedOut) {
-        console.warn(`QA_SAMPLING fetch timed out after ${LOAD_TIMEOUT_MS/1000}s.`);
-      } else if (outcome.ok) {
-        processQAChatRows(outcome.res.data);
-      } else {
-        console.warn('QA_SAMPLING sheet failed to load.');
+      if (!outcome.ok) {
+        console.warn('QA sheet failed to load.');
+        return;
       }
+      processQARows(outcome.res.data);
+      populateQAFilters();
       if (document.getElementById('page-qa').classList.contains('active')) renderQA();
     }
   );
@@ -969,154 +1052,52 @@ const QA_RUBRIC_FIELDS = [
   ['waEtiquette',          'C9 WA Etiquette'],
 ];
 
-// Visible leaderboard dimensions. A1 can contain two scored sub-fields in
-// CHAT_REVIEW; when both exist, A1 is the average of the available A1 parts.
-const QA_VISIBLE_DIMENSIONS = [
-  ['A1', ['responsivenessPython', 'responsivenessQA']],
-  ['A2', ['commClarity']],
-  ['A3', ['toneEmpathy']],
-  ['A4', ['personalization']],
-  ['A5', ['objHandling']],
-  ['A6', ['negoSkill']],
-];
-
-function qaHeaderKey(value) {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/[’'`]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-function findHeaderRow(rows, requiredHeaders, maxRows = 40) {
-  const wanted = requiredHeaders.map(qaHeaderKey);
-  for (let i = 0; i < Math.min(rows.length, maxRows); i++) {
-    const joined = rows[i].map(qaHeaderKey).join(' | ');
-    if (wanted.every(h => joined.includes(h))) return i;
-  }
-  return -1;
-}
-
-function buildHeaderIndex(row) {
-  const idx = {};
-  row.forEach((h, j) => {
-    const k = qaHeaderKey(h);
-    if (k) idx[k] = j;
-  });
-  return idx;
-}
-
-function getHeaderValue(row, hIdx, aliases) {
-  for (const alias of aliases) {
-    const k = qaHeaderKey(alias);
-    if (hIdx[k] !== undefined) return String(row[hIdx[k]] || '').trim();
-  }
-  return '';
-}
-
-function getHeaderNumber(row, hIdx, aliases) {
-  const v = getHeaderValue(row, hIdx, aliases);
-  if (!v) return null;
-  const n = parseFloat(String(v).replace(',', '.'));
-  return Number.isFinite(n) ? n : null;
-}
-
-function parseQAFilterMonth(value) {
-  const s = String(value || '').trim();
-  if (!s) return '';
-  // Already a normal month label such as Aug / July.
-  const m = s.match(/^([A-Za-z]+)\b/);
-  if (m && MONTH_NAMES.some(x => x.toLowerCase() === m[1].toLowerCase())) return m[1];
-  // dd/mm/yyyy or yyyy-mm-dd fallback.
-  const d = parseDateFull(s);
-  if (d) return MONTH_NAMES[d.getMonth()];
-  return s;
-}
-
 function processQARows(rows) {
   QA_ALL = [];
-  const headerRowIdx = findHeaderRow(rows, ['Nama SAR', 'Score /100'], 40);
+  let hIdx = {};
+  let headerRowIdx = -1;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const joined = rows[i].join('|').toLowerCase();
+    if (joined.includes('nama sar') && joined.includes('score /100')) {
+      headerRowIdx = i;
+      rows[i].forEach((h, j) => { if (h.trim()) hIdx[h.trim().toLowerCase()] = j; });
+      break;
+    }
+  }
   if (headerRowIdx === -1) {
-    console.warn('CHAT_REVIEW: header row not found.');
+    console.warn('QA Chat Review: header row not found (looked for "Nama SAR" + "Score /100").');
     return;
   }
-
-  const hIdx = buildHeaderIndex(rows[headerRowIdx]);
-  const col = (row, aliases) => getHeaderValue(row, hIdx, Array.isArray(aliases) ? aliases : [aliases]);
-  const numCol = (row, aliases) => getHeaderNumber(row, hIdx, Array.isArray(aliases) ? aliases : [aliases]);
+  const col = (row, name) => { const idx = hIdx[name.toLowerCase()]; return idx !== undefined ? (row[idx] || '').trim() : ''; };
+  const numCol = (row, name) => { const v = parseFloat(col(row, name)); return isNaN(v) ? null : v; };
 
   for (let i = headerRowIdx + 1; i < rows.length; i++) {
     const row = rows[i];
-    const sar = col(row, ['Nama SAR']);
+    const sar = col(row, 'nama sar');
     if (!sar) continue;
-
-    const score = numCol(row, ['Score /100', 'Score/100', 'Score']);
-    if (score === null) continue;
+    const scoreRaw = col(row, 'score /100');
+    const score = parseFloat(scoreRaw);
+    if (!scoreRaw || isNaN(score)) continue;
 
     const rubric = {};
-    QA_RUBRIC_FIELDS.forEach(([key, header]) => {
-      const aliases = [header];
-      // Common alternate spellings in the newer sheet layout.
-      if (key === 'commClarity') aliases.push('A2 Communication Clarity', 'A2 Comm Clarity');
-      if (key === 'toneEmpathy') aliases.push('A3 Tone & Empathy', 'A3 Tone and Empathy');
-      if (key === 'personalization') aliases.push('A4 Personalization');
-      if (key === 'objHandling') aliases.push('A5 Objection Handling', 'A5 Obj Handling');
-      if (key === 'negoSkill') aliases.push('A6 Negotiation Skills', 'A6 Nego Skill');
-      rubric[key] = numCol(row, aliases);
-    });
+    QA_RUBRIC_FIELDS.forEach(([key, header]) => { rubric[key] = numCol(row, header); });
 
     QA_ALL.push({
       sar,
-      branch:   col(row, ['Center', 'Branch']),
-      month:    col(row, ['Month']) || parseQAFilterMonth(col(row, ['Tanggal Review', 'Tgl Data Sample'])),
-      week:     col(row, ['Week']),
-      date:     col(row, ['Tgl Data Sample', 'Tanggal Review']),
-      reviewer: col(row, ['Reviewer', 'Nama Reviewer']),
-      scenario: col(row, ['Tipe Scenario', 'Scenario']),
+      branch:   col(row, 'center'),
+      month:    col(row, 'month'),
+      week:     col(row, 'week'),
+      date:     col(row, 'tgl data sample'),
+      reviewer: col(row, 'reviewer'),
+      scenario: col(row, 'tipe scenario'),
       score,
-      rawScore: col(row, ['Raw Score /36', 'Raw Score']),
-      tier:     col(row, ['Tier']),
-      notes:    col(row, ['Kutipan & Catatan Review', 'Kutipan & Catatan', 'Notes']),
+      rawScore: col(row, 'raw score /36'),
+      tier:     col(row, 'tier'),
+      notes:    col(row, 'kutipan & catatan review'),
       rubric,
     });
   }
-  console.log(`CHAT_REVIEW loaded: ${QA_ALL.length} scored rows`);
-}
-
-// QA_SAMPLING parser. Unlike CHAT_REVIEW, this intentionally DOES NOT
-// require Score /100. Every row with a Nama SAR is one reviewed chat.
-function processQAChatRows(rows) {
-  QA_CHAT_ALL = [];
-  const headerRowIdx = findHeaderRow(rows, ['Nama SAR', 'Week'], 50);
-  if (headerRowIdx === -1) {
-    console.warn('QA_SAMPLING: header row not found.');
-    return;
-  }
-
-  const hIdx = buildHeaderIndex(rows[headerRowIdx]);
-  const col = (row, aliases) => getHeaderValue(row, hIdx, Array.isArray(aliases) ? aliases : [aliases]);
-
-  for (let i = headerRowIdx + 1; i < rows.length; i++) {
-    const row = rows[i];
-    const sar = col(row, ['Nama SAR']);
-    const week = col(row, ['Week']);
-    if (!sar || !week) continue;
-
-    const date = col(row, ['Tanggal Review', 'Tgl Data Sample']);
-    const month = col(row, ['Month']) || parseQAFilterMonth(date);
-    const branch = col(row, ['Center', 'Branch']);
-
-    QA_CHAT_ALL.push({
-      sar,
-      branch,
-      month,
-      week,
-      date,
-    });
-  }
-
-  console.log(`QA_SAMPLING loaded: ${QA_CHAT_ALL.length} chat rows`);
+  console.log(`QA Chat Review loaded: ${QA_ALL.length} scored rows`);
 }
 
 // =====================================================================
@@ -2220,7 +2201,10 @@ function openModal(idx) {
     ${d.exp_payment&&!d.exp_payment.startsWith('#')?`<div class="m-sec"><div class="m-sec-t">Expected Payment</div><div class="m-sec-b">${d.exp_payment}</div></div>`:''}`;
   document.getElementById('overlay').classList.add('open');
 }
-function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  document.querySelector('.modal').style.maxWidth = ''; // reset any per-modal width override
+}
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
 
 // =====================================================================
@@ -2392,6 +2376,8 @@ function qaTierInfo(score) {
   return { label: 'Critical', pill: 'pill-red' };
 }
 
+// "Week 9" > "Week 31" as plain strings ('9' > '3'), so anything sorting
+// week labels needs the numeric portion, not localeCompare/default sort.
 const weekSortKey = w => parseInt((w || '').match(/\d+/)?.[0] || '0', 10);
 
 function populateQAFilters() {
@@ -2399,61 +2385,15 @@ function populateQAFilters() {
   const weeks    = [...new Set(QA_ALL.map(d => d.week).filter(Boolean))].sort((a, b) => weekSortKey(a) - weekSortKey(b));
   const branches = [...new Set(QA_ALL.map(d => d.branch).filter(Boolean))].sort();
 
-  createMultiSelect('qMonthMS', months, () => renderQA(), { allLabel: 'Semua Bulan', unitLabel: 'Bulan' });
-  createMultiSelect('qWeekMS', weeks, () => renderQA(), { allLabel: 'Semua Week', unitLabel: 'Week' });
+  createMultiSelect('qMonthMS',  months,   () => renderQA(), { allLabel: 'Semua Bulan',  unitLabel: 'Bulan' });
+  createMultiSelect('qWeekMS',   weeks,    () => renderQA(), { allLabel: 'Semua Week',   unitLabel: 'Week' });
   createMultiSelect('qBranchMS', branches, () => renderQA(), { allLabel: 'Semua Branch', unitLabel: 'Branch' });
-}
-
-function qaDimensionValue(rows, dimensionKey) {
-  const fieldKeys = QA_VISIBLE_DIMENSIONS.find(([key]) => key === dimensionKey)?.[1] || [];
-  const values = [];
-  rows.forEach(d => {
-    fieldKeys.forEach(fKey => {
-      const v = d.rubric ? d.rubric[fKey] : null;
-      if (v !== null && v !== undefined && Number.isFinite(Number(v))) values.push(Number(v));
-    });
-  });
-  if (!values.length) return null;
-  const avg = values.reduce((a, b) => a + b, 0) / values.length;
-  return Math.round(avg * 10) / 10;
-}
-
-function qaDimensionValues(rows) {
-  const out = {};
-  QA_VISIBLE_DIMENSIONS.forEach(([key]) => { out[key] = qaDimensionValue(rows, key); });
-  return out;
-}
-
-function formatQADimension(v) {
-  return v === null || v === undefined || !Number.isFinite(Number(v)) ? '—' : Number(v).toFixed(1).replace('.0', '');
-}
-
-function countQAChats(chatRows, selectedMonthSet, selectedWeekSet, selectedBranchSet) {
-  const counts = {};
-  const filteredChatRows = [];
-
-  chatRows.forEach(d => {
-    if (selectedMonthSet.size && !selectedMonthSet.has(d.month)) return;
-    if (selectedWeekSet.size && !selectedWeekSet.has(d.week)) return;
-    if (selectedBranchSet.size && d.branch && !selectedBranchSet.has(d.branch)) return;
-    // If a branch filter is selected and this sampling row has no branch,
-    // don't accidentally count it for the selected branch.
-    if (selectedBranchSet.size && !d.branch) return;
-
-    const key = normName(d.sar);
-    if (!key) return;
-    counts[key] = (counts[key] || 0) + 1;
-    filteredChatRows.push(d);
-  });
-
-  return { counts, filteredChatRows };
 }
 
 function renderQA() {
   if (!QA_ALL.length) return;
-
-  const moSet = multiSelects['qMonthMS'] ? multiSelects['qMonthMS'].getSelected() : new Set();
-  const wkSet = multiSelects['qWeekMS'] ? multiSelects['qWeekMS'].getSelected() : new Set();
+  const moSet = multiSelects['qMonthMS']  ? multiSelects['qMonthMS'].getSelected()  : new Set();
+  const wkSet = multiSelects['qWeekMS']   ? multiSelects['qWeekMS'].getSelected()   : new Set();
   const brSet = multiSelects['qBranchMS'] ? multiSelects['qBranchMS'].getSelected() : new Set();
 
   let data = QA_ALL;
@@ -2462,37 +2402,28 @@ function renderQA() {
   if (brSet.size) data = data.filter(d => brSet.has(d.branch));
   qaLastData = data;
 
-  const chatResult = countQAChats(QA_CHAT_ALL, moSet, wkSet, brSet);
-  qaLastChatData = chatResult.filteredChatRows;
-
   document.getElementById('qaNote').textContent =
-    `Score A1–A6 dan Rata-rata Skor dihitung dari CHAT_REVIEW. Chats Reviewed dihitung dari QA_SAMPLING berdasarkan jumlah kemunculan Nama SAR pada Week yang dipilih. ${chatResult.filteredChatRows.length} chat sampling cocok dengan filter saat ini dan ${data.length} scored review memiliki Score /100.`;
+    `Rata-rata dihitung langsung dari kolom "Score /100" tiap baris CHAT_REVIEW (bukan dari tab DASHBOARD_SAR sheet), dan otomatis merata-ratakan seluruh minggu yang dipilih jika lebih dari satu week aktif. Tier: Excellent ≥85, Good ≥70, Needs Dev ≥50, Critical <50. ${data.length} review cocok dengan filter saat ini.`;
 
+  // Group per SAR — normalized key so spelling/casing/whitespace variants
+  // of the same name merge into one entry, same convention as SA Performance.
   const saMap = {};
   data.forEach(d => {
     const key = normName(d.sar);
     if (!saMap[key]) saMap[key] = { key, name: d.sar, rows: [], branches: new Set() };
     saMap[key].rows.push(d);
-    if (d.branch) saMap[key].branches.add(d.branch);
+    saMap[key].branches.add(d.branch);
   });
-
   const allSA = Object.values(saMap)
-    .map(sa => ({
-      ...sa,
-      avg: qaAvg(sa.rows),
-      count: sa.rows.length,
-      chatCount: chatResult.counts[sa.key] || 0,
-      dimensions: qaDimensionValues(sa.rows),
-    }))
+    .map(sa => ({ ...sa, avg: qaAvg(sa.rows), count: sa.rows.length }))
     .sort((a, b) => b.avg - a.avg);
-
   qaLastSA = allSA;
 
   const tierDefs = [
-    { cls: 'tier-top', icon: '🏆', title: 'Excellent', badge: 'Skor ≥ 85', filter: sa => sa.avg >= 85 },
-    { cls: 'tier-good', icon: '📈', title: 'Good', badge: 'Skor 70–84', filter: sa => sa.avg >= 70 && sa.avg < 85 },
-    { cls: 'tier-mid', icon: '⚠️', title: 'Needs Dev', badge: 'Skor 50–69', filter: sa => sa.avg >= 50 && sa.avg < 70 },
-    { cls: 'tier-critical', icon: '🚨', title: 'Critical', badge: 'Skor < 50', filter: sa => sa.avg < 50 },
+    { cls: 'tier-top',      icon: '🏆', title: 'Excellent', badge: 'Skor ≥ 85',  filter: sa => sa.avg >= 85 },
+    { cls: 'tier-good',     icon: '📈', title: 'Good',       badge: 'Skor 70–84', filter: sa => sa.avg >= 70 && sa.avg < 85 },
+    { cls: 'tier-mid',      icon: '⚠️', title: 'Needs Dev',  badge: 'Skor 50–69', filter: sa => sa.avg >= 50 && sa.avg < 70 },
+    { cls: 'tier-critical', icon: '🚨', title: 'Critical',   badge: 'Skor < 50',  filter: sa => sa.avg < 50 },
   ];
 
   const avatarColors = ['#0d9e5c','#2563eb','#e03131','#d97706','#7c3aed','#e8440c','#0891b2','#16a34a'];
@@ -2500,15 +2431,13 @@ function renderQA() {
     const color = avatarColors[i % avatarColors.length];
     const initials = sa.name.split(' ').map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
     const safeKey = sa.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const dims = sa.dimensions;
     return `<div class="sa-card">
       <div class="sa-avatar" style="background:${color};">${initials}</div>
       <div class="sa-name">${sa.name}</div>
       <div class="sa-stats">
-        <div class="sa-row"><span>Chats Reviewed</span><span>${sa.chatCount}</span></div>
+        <div class="sa-row"><span>Total review</span><span>${sa.count}</span></div>
         <div class="sa-row"><span>Rata-rata skor</span><span style="font-weight:800;color:${qaScoreColor(sa.avg)};">${sa.avg}</span></div>
-        <div class="sa-row"><span>A1–A6</span><span style="font-size:11px;color:var(--text2);">${QA_VISIBLE_DIMENSIONS.map(([k]) => `${k}: ${formatQADimension(dims[k])}`).join(' · ')}</span></div>
-        <div class="sa-row"><span>Branch</span><span style="font-size:11px;color:var(--text2);">${[...sa.branches].join(', ') || '—'}</span></div>
+        <div class="sa-row"><span>Branch</span><span style="font-size:11px;color:var(--text2);">${[...sa.branches].join(', ')}</span></div>
       </div>
       <button class="sa-detail-btn" onclick="event.stopPropagation();openQADetail('${safeKey}')">📊 Detail Review</button>
     </div>`;
@@ -2518,11 +2447,16 @@ function renderQA() {
     const members = allSA.filter(tier.filter);
     return `<div class="tier-section ${tier.cls}">
       <div class="tier-header">
-        <div class="tier-header-inner"><span class="tier-icon">${tier.icon}</span><span class="tier-title">${tier.title}</span></div>
+        <div class="tier-header-inner">
+          <span class="tier-icon">${tier.icon}</span>
+          <span class="tier-title">${tier.title}</span>
+        </div>
         <span class="tier-badge">${tier.badge} · ${members.length} SAR</span>
       </div>
       <div class="tier-body">
-        ${members.length ? `<div class="sa-grid">${members.map((sa, i) => qaCard(sa, i)).join('')}</div>` : `<div class="tier-empty">Tidak ada SAR di tier ini untuk periode ini.</div>`}
+        ${members.length
+          ? `<div class="sa-grid">${members.map((sa, i) => qaCard(sa, i)).join('')}</div>`
+          : `<div class="tier-empty">Tidak ada SAR di tier ini untuk periode ini.</div>`}
       </div>
     </div>`;
   }).join('');
@@ -2535,16 +2469,11 @@ function renderQALeaderboard(allSA) {
   document.getElementById('qaLeaderboardBody').innerHTML = rows.map((sa, i) => {
     const info = qaTierInfo(sa.avg);
     const safeKey = sa.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const dims = sa.dimensions || {};
     return `<tr onclick="openQADetail('${safeKey}')">
       <td class="muted">${i + 1}</td>
       <td><strong>${sa.name}</strong></td>
-      <td class="muted">${[...sa.branches].join(', ') || '—'}</td>
-      <td style="font-weight:800;">${sa.chatCount}</td>
-      ${QA_VISIBLE_DIMENSIONS.map(([key]) => {
-        const v = dims[key];
-        return `<td style="color:${qaRubricColor(v)};font-weight:800;text-align:center;">${formatQADimension(v)}</td>`;
-      }).join('')}
+      <td class="muted">${[...sa.branches].join(', ')}</td>
+      <td>${sa.count}</td>
       <td style="color:${qaScoreColor(sa.avg)};font-weight:800;">${sa.avg}</td>
       <td><span class="pill ${info.pill}">${info.label}</span></td>
     </tr>`;
@@ -2558,6 +2487,8 @@ function setQAView(view) {
   document.getElementById('qaViewLeaderboardBtn').classList.toggle('active', view === 'leaderboard');
 }
 
+// Rubric scores are 1-4 per dimension (see the sheet's own note: "Skor 1-4
+// per dimensi") — colored on that scale, separately from the /100 overall.
 function qaRubricColor(score) {
   if (score === null || score === undefined || isNaN(score)) return 'var(--text3)';
   if (score >= 4) return 'var(--green)';
@@ -2571,7 +2502,6 @@ function openQADetail(key) {
   if (!sa) return;
   const info = qaTierInfo(sa.avg);
   const rows = [...sa.rows].sort((a, b) => weekSortKey(b.week) - weekSortKey(a.week) || (b.date || '').localeCompare(a.date || ''));
-  const chatCount = sa.chatCount || 0;
 
   const weekHtml = rows.map((d, i) => {
     const rubricRows = QA_RUBRIC_FIELDS.map(([fKey, label]) => {
@@ -2583,12 +2513,19 @@ function openQADetail(key) {
     const rubricValues = QA_RUBRIC_FIELDS.map(([fKey]) => d.rubric ? d.rubric[fKey] : null).filter(v => v !== null && v !== undefined && !isNaN(v));
     const rubricTotal = rubricValues.reduce((sum, v) => sum + v, 0);
     const rubricMax = rubricValues.length * 4;
+
     const notesHtml = d.notes ? `<div class="qa-notes"><strong>Catatan:</strong><br>${d.notes}</div>` : '';
 
     return `<div class="qa-week ${i === 0 ? 'open' : ''}">
       <button type="button" class="qa-week-head" onclick="toggleQAWeek(this)">
-        <span><span class="qa-week-title">${d.week || 'Week —'}</span>${d.reviewer ? `<span style="font-size:11px;color:var(--text3);"> · ${d.reviewer}</span>` : ''}</span>
-        <span style="display:flex;align-items:center;gap:10px;"><strong class="qa-week-score" style="color:${qaScoreColor(d.score)};">${d.score}</strong><span class="qa-week-arrow">▼</span></span>
+        <span>
+          <span class="qa-week-title">${d.week || 'Week —'}</span>
+          ${d.reviewer ? `<span style="font-size:11px;color:var(--text3);"> · ${d.reviewer}</span>` : ''}
+        </span>
+        <span style="display:flex;align-items:center;gap:10px;">
+          <strong class="qa-week-score" style="color:${qaScoreColor(d.score)};">${d.score}</strong>
+          <span class="qa-week-arrow">▼</span>
+        </span>
       </button>
       <div class="qa-week-body">
         ${d.scenario ? `<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Scenario: ${d.scenario}</div>` : ''}
@@ -2603,12 +2540,12 @@ function openQADetail(key) {
   document.getElementById('mTitle').textContent = `QA Detail — ${sa.name}`;
   document.getElementById('mBody').innerHTML = `
     <div class="m-grid">
-      <div class="m-stat"><div class="m-stat-l">Chats Reviewed</div><div class="m-stat-v">${chatCount}</div></div>
-      <div class="m-stat"><div class="m-stat-l">Scored Review</div><div class="m-stat-v">${sa.count}</div></div>
+      <div class="m-stat"><div class="m-stat-l">Total Review</div><div class="m-stat-v">${sa.count}</div></div>
       <div class="m-stat"><div class="m-stat-l">Rata-rata Skor</div><div class="m-stat-v" style="color:${qaScoreColor(sa.avg)};">${sa.avg}</div></div>
       <div class="m-stat"><div class="m-stat-l">Tier</div><div class="m-stat-v"><span class="pill ${info.pill}">${info.label}</span></div></div>
+      <div class="m-stat"><div class="m-stat-l">Branch</div><div class="m-stat-v">${[...sa.branches].join(', ') || '—'}</div></div>
     </div>
-    <div class="m-sec"><div class="m-sec-t">Detail Score per Review</div><div>${weekHtml || 'Tidak ada scored review.'}</div></div>`;
+    <div class="m-sec"><div class="m-sec-t">Detail Score per Week</div><div>${weekHtml || 'Tidak ada review.'}</div></div>`;
   document.getElementById('overlay').classList.add('open');
 }
 
@@ -2616,6 +2553,603 @@ function toggleQAWeek(button) {
   const week = button.closest('.qa-week');
   if (!week) return;
   week.classList.toggle('open');
+}
+
+// =====================================================================
+// LANJUT CONVERSION — data + rendering
+// =====================================================================
+// The Apps Script writes to this Google Sheet (HISTORY_SHEET_ID in the GS):
+const LANJUT_LOG_SHEET_ID  = '1sPb9qHpGJpInTMenJorObuDTyOZV6llyP7ktpfWu-2o';
+const LANJUT_LOG_TAB_NAME  = 'Lanjut Retention Log';
+const LANJUT_LOG_CSV = `https://docs.google.com/spreadsheets/d/${LANJUT_LOG_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(LANJUT_LOG_TAB_NAME)}`;
+
+// Header: Phone | Branch Code | SAR | Fill Date | Cycle Expiry Date |
+//         M Label | First Logged Date | Retained | Last Checked Date
+let LANJUT_ALL  = [];   // all parsed log rows
+let lanjutLoaded = false;
+let lanjutView   = 'sar';   // 'sar' | 'branch' | 'log'
+let lanjutSortKey = 'rate';
+let lanjutSortDir = -1;
+let lanjutLogSortKey = 'expiryDate';
+let lanjutLogSortDir = -1;
+let lanjutLogPage = 1;
+const LANJUT_PAGE_SIZE = 60;
+
+function loadLanjutLog() {
+  document.getElementById('lanjutSub').textContent = 'Memuat data log...';
+  document.getElementById('lanjutEmpty').style.display = 'none';
+  withTimeout(
+    done => Papa.parse(LANJUT_LOG_CSV, {
+      download: true, skipEmptyLines: true,
+      complete(res) { done({ ok: true, res }); },
+      error()       { done({ ok: false }); }
+    }),
+    outcome => {
+      if (outcome.timedOut || !outcome.ok) {
+        document.getElementById('lanjutSub').textContent = 'Tidak bisa memuat log — cek sharing settings sheet.';
+        document.getElementById('lanjutEmpty').style.display = 'block';
+        return;
+      }
+      processLanjutRows(outcome.res.data);
+      lanjutLoaded = true;
+      renderLanjut();
+    }
+  );
+}
+
+function processLanjutRows(rows) {
+  LANJUT_ALL = [];
+  if (rows.length < 2) return;
+
+  // Find header row
+  let hIdx = {};
+  let dataStart = 1;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    const joined = rows[i].join('|').toLowerCase();
+    if (joined.includes('phone') && joined.includes('retained')) {
+      rows[i].forEach((h, j) => { if (h.trim()) hIdx[h.trim().toLowerCase()] = j; });
+      dataStart = i + 1;
+      break;
+    }
+  }
+
+  const col = (row, name, fallback) => {
+    const idx = hIdx[name.toLowerCase()];
+    return (idx !== undefined ? row[idx] : (fallback !== undefined ? row[fallback] : undefined))?.trim() || '';
+  };
+
+  for (let i = dataStart; i < rows.length; i++) {
+    const row = rows[i];
+    if (row.length < 8) continue;
+    const name     = col(row, 'name');
+    const phone    = col(row, 'phone',              0);
+    const branch   = col(row, 'branch code',        1);
+    const sar      = col(row, 'sar',                2);
+    const fillDate = col(row, 'fill date',          3);
+    const expiry   = col(row, 'cycle expiry date',  4);
+    const mLabel   = col(row, 'm label',            5);
+    const retRaw   = col(row, 'retained',           7);
+    const status   = col(row, 'retention status');
+    const class1   = col(row, 'class 1');
+    const class2   = col(row, 'class 2');
+    if (!phone && !sar) continue;
+    LANJUT_ALL.push({
+      name, phone, branch, sar,
+      fillDate, expiry, mLabel,
+      retained: retRaw.toUpperCase() === 'TRUE',
+      status, class1, class2,
+      statusInfo: categorizeLanjutStatus(status),
+      expiryDate: parseDateFull(expiry),
+      expiryMonthLabel: extractMonthLabel(expiry),
+    });
+  }
+  console.log(`Lanjut Log: ${LANJUT_ALL.length} entries loaded.`);
+}
+
+// ─── retention status categorization ───────────────────────────────────────
+// Matches the color-coded status set used on the retention dashboards
+// (column U). Anything not recognized falls into an 'other' bucket rather
+// than being dropped, so new/unexpected statuses stay visible.
+const LANJUT_STATUS_MAP = {
+  'paid retention':      { category: 'paid',      label: 'Paid Retention',      color: '#0b6e3f' },
+  'paid retention - dp': { category: 'paid',      label: 'Paid Retention - DP', color: '#7fd8a3' },
+  'paid - cicil':        { category: 'paid',      label: 'Paid - Cicil',        color: '#2563eb' },
+  'churned':             { category: 'churned',   label: 'Churned',             color: '#c0392b' },
+  'confirmed to churn (still possible to retain)': { category: 'at_risk',  label: 'Confirmed to Churn (recoverable)', color: '#f5a3a3' },
+  'confirmed to retain (not paid yet)':            { category: 'pending',  label: 'Confirmed to Retain (unpaid)',     color: '#f2c94c' },
+  'not yet been asked':  { category: 'pending',    label: 'Not Yet Asked',       color: '#3b3f4a' },
+  'asked - still no response': { category: 'pending', label: 'Asked - No Response', color: '#5a6079' },
+  'still unsure':         { category: 'undecided', label: 'Still Unsure',        color: '#e08a3c' },
+  'move to other center': { category: 'transferred', label: 'Move to Other Center', color: '#7c3aed' },
+  'drop - unpaid installment': { category: 'dropped', label: 'Drop - Unpaid Installment', color: '#0f766e' },
+};
+function categorizeLanjutStatus(status) {
+  const key = (status || '').trim().toLowerCase();
+  return LANJUT_STATUS_MAP[key] || { category: 'other', label: status || 'Unknown', color: '#9ba3bd' };
+}
+
+// ─── filter state ────────────────────────────────────────────────────────────
+function getLanjutFiltered() {
+  const bSet   = multiSelects['lBranchMS']      ? multiSelects['lBranchMS'].getSelected()      : new Set();
+  const moSet  = multiSelects['lExpiryMonthMS'] ? multiSelects['lExpiryMonthMS'].getSelected() : new Set();
+  const mLabel = document.getElementById('lMLabel').value;
+  return LANJUT_ALL.filter(d =>
+    (!bSet.size  || bSet.has(d.branch)) &&
+    (!moSet.size || moSet.has(d.expiryMonthLabel)) &&
+    (!mLabel     || d.mLabel === mLabel)
+  );
+}
+
+function resetLanjutFilters() {
+  if (multiSelects['lBranchMS'])      multiSelects['lBranchMS'].clear();
+  if (multiSelects['lExpiryMonthMS']) multiSelects['lExpiryMonthMS'].clear();
+  document.getElementById('lMLabel').value = '';
+  document.getElementById('lSearch').value = '';
+  renderLanjut();
+}
+
+function initLanjutFilters() {
+  const branches = [...new Set(LANJUT_ALL.map(d => d.branch).filter(Boolean))].sort();
+  createMultiSelect('lBranchMS', branches, () => renderLanjut(), { allLabel: 'Semua Branch', unitLabel: 'Branch' });
+
+  const months = [...new Set(LANJUT_ALL.map(d => d.expiryMonthLabel).filter(Boolean))]
+    .sort((a, b) => monthLabelToSortKey(b) - monthLabelToSortKey(a));
+  createMultiSelect('lExpiryMonthMS', months, () => renderLanjut(), { allLabel: 'Semua Bulan Expiry', unitLabel: 'Bulan' });
+}
+
+function setLanjutView(view) {
+  lanjutView = view;
+  document.getElementById('lanjutSARView').style.display    = view === 'sar'    ? 'block' : 'none';
+  document.getElementById('lanjutBranchView').style.display = view === 'branch' ? 'block' : 'none';
+  document.getElementById('lanjutLogView').style.display    = view === 'log'    ? 'block' : 'none';
+  ['sar','branch','log'].forEach(v => {
+    const btn = document.getElementById(`lanjutView${v.charAt(0).toUpperCase()+v.slice(1)}Btn`);
+    if (btn) btn.classList.toggle('active', v === view);
+  });
+  if (lanjutLoaded && LANJUT_ALL.length) {
+    const data = getLanjutFiltered();
+    if (view === 'sar')    renderLanjutSAR(data);
+    if (view === 'branch') renderLanjutBranchTable(data);
+    if (view === 'log')    renderLanjutLog();
+  }
+}
+
+// ─── SAR Dictionary active-status check (shared with SA Performance page) ──
+function isSarActive(sarName) {
+  if (!sarName) return false;
+  const rec = SAR_MAP[normName(sarName)];
+  return !!rec && rec.status.toLowerCase().startsWith('active');
+}
+
+// ─── KPI metrics ──────────────────────────────────────────────────────────────
+function renderLanjutMetrics(data) {
+  const total    = data.length;
+  const retained = data.filter(d => d.retained).length;
+  const churned  = total - retained;
+  const rate     = total ? Math.round(retained / total * 100) : 0;
+  const sarsSet     = new Set(data.map(d => d.sar).filter(Boolean));
+  const activeSars  = [...sarsSet].filter(isSarActive);
+  const branchSet= new Set(data.map(d => d.branch).filter(Boolean));
+
+  // M-label breakdown
+  const mLabels = ['M0','M-1','M-2'];
+  const mRates  = mLabels.map(m => {
+    const sub = data.filter(d => d.mLabel === m);
+    const r   = sub.filter(d => d.retained).length;
+    return sub.length ? Math.round(r / sub.length * 100) : null;
+  });
+
+  const rateColor = rate >= 70 ? 'var(--green)' : rate >= 50 ? 'var(--amber)' : 'var(--red)';
+
+  const mSubHtml = mLabels.map((m, i) => mRates[i] === null ? '' :
+    `<div style="display:flex;justify-content:space-between;"><span>${m}</span><span style="font-weight:700;color:${mRates[i]>=70?'var(--green)':mRates[i]>=50?'var(--amber)':'var(--red)'};">${mRates[i]}%</span></div>`
+  ).filter(Boolean).join('');
+
+  document.getElementById('lanjutMetrics').innerHTML = `
+    <div class="mc c-blue fade-in"><div class="mc-icon">📋</div><div class="mc-val">${total.toLocaleString()}</div><div class="mc-label">Total Sinyal Lanjut</div><div class="mc-sub">Siklus dengan NPS "Lanjut"</div></div>
+    <div class="mc c-green fade-in" style="cursor:pointer;" onclick="openLanjutDetailModal(true)" title="Klik untuk lihat detail"><div class="mc-icon">✅</div><div class="mc-val">${retained.toLocaleString()}</div>
+      <div class="mc-label">Benar-benar Retained</div>
+      <div class="mc-sub"><div style="font-size:10px;color:var(--text3);margin-top:4px;display:flex;flex-direction:column;gap:2px;">${mSubHtml}</div></div>
+    </div>
+    <div class="mc c-red fade-in" style="cursor:pointer;" onclick="openLanjutDetailModal(false)" title="Klik untuk lihat detail"><div class="mc-icon">❌</div><div class="mc-val">${churned.toLocaleString()}</div><div class="mc-label">Churned / Undecided</div><div class="mc-sub">${total?Math.round(churned/total*100):0}% dari yang bilang Lanjut</div></div>
+    <div class="mc c-amber fade-in">
+      <div class="mc-icon">🎯</div>
+      <div class="mc-val" style="color:${rateColor};">${rate}%</div>
+      <div class="mc-label">Conversion Rate</div>
+      <div class="mc-sub">Lanjut → Paid Retention</div>
+    </div>
+    <div class="mc c-purple fade-in"><div class="mc-icon">👤</div><div class="mc-val">${activeSars.length}</div><div class="mc-label">SAR Aktif di Log</div><div class="mc-sub">${branchSet.size} branch terlibat · ${sarsSet.size} total (termasuk non-active)</div></div>`;
+
+  renderLanjutStatusBreakdown(data);
+}
+
+// ─── retention status breakdown (categorizes ALL statuses, not just paid/not) ──
+function renderLanjutStatusBreakdown(data) {
+  const el = document.getElementById('lanjutStatusBreakdown');
+  if (!el) return;
+
+  const total = data.length;
+  const counts = {}; // status label -> { count, color, category }
+  data.forEach(d => {
+    const info = d.statusInfo || categorizeLanjutStatus(d.status);
+    const key = info.label;
+    if (!counts[key]) counts[key] = { count: 0, color: info.color, category: info.category };
+    counts[key].count++;
+  });
+
+  const rows = Object.entries(counts).sort((a, b) => b[1].count - a[1].count);
+
+  if (!rows.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <div class="cc-head"><div><div class="cc-title">Breakdown per Status Retensi</div><div class="cc-sub">Semua status dari kolom U, dikategorikan</div></div></div>
+    <div class="bl">
+      ${rows.map(([label, v]) => {
+        const pct = total ? Math.round(v.count / total * 100) : 0;
+        return `<div class="br">
+          <div class="br-label" style="width:220px;" title="${label}">${label}</div>
+          <div class="br-track"><div class="br-fill" style="width:${pct}%;background:${v.color};"></div></div>
+          <div class="br-val">${v.count.toLocaleString()} (${pct}%)</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ─── clickable detail popup: names behind "Retained" / "Churned/Undecided" ──
+// The SAR filter inside this popup is scoped to whatever's ALREADY selected
+// via the main branch filter, since lanjutModalRows comes straight out of
+// getLanjutFiltered() (which already applies the branch multi-select) before
+// the retained/not-retained split is applied.
+let lanjutModalRows = [];
+let lanjutModalSarFilter = '';
+
+function openLanjutDetailModal(retainedValue) {
+  lanjutModalRows = getLanjutFiltered().filter(d => d.retained === retainedValue);
+  lanjutModalSarFilter = '';
+
+  document.getElementById('mTitle').textContent = retainedValue
+    ? 'Detail — Benar-benar Retained'
+    : 'Detail — Churned / Undecided';
+
+  renderLanjutModalBody();
+  document.querySelector('.modal').style.maxWidth = '820px';
+  document.getElementById('overlay').classList.add('open');
+}
+
+function renderLanjutModalBody() {
+  const sars = [...new Set(lanjutModalRows.map(d => d.sar).filter(Boolean))]
+    .filter(isSarActive)
+    .sort();
+  const filtered = lanjutModalSarFilter
+    ? lanjutModalRows.filter(d => d.sar === lanjutModalSarFilter)
+    : lanjutModalRows;
+
+  const rowsHtml = filtered.length ? filtered.map(d => {
+    const info = d.statusInfo || categorizeLanjutStatus(d.status);
+    const kelas = [d.class1, d.class2].filter(Boolean).join(', ');
+    return `<tr>
+      <td><strong>${d.name || '—'}</strong></td>
+      <td class="muted" style="font-size:12px;">${d.phone || '—'}</td>
+      <td class="muted">${d.expiry || '—'}</td>
+      <td>${d.sar || '—'}</td>
+      <td class="muted">${kelas || '—'}</td>
+      <td><span class="pill" style="background:${info.color}22;color:${info.color};">${info.label}</span></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px;">Tidak ada data untuk filter ini.</td></tr>`;
+
+  document.getElementById('mBody').innerHTML = `
+    <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="fl">FILTER SAR</span>
+      <select id="lanjutModalSarSelect" onchange="lanjutModalSetSar(this.value)">
+        <option value="">Semua SAR (${lanjutModalRows.length})</option>
+        ${sars.map(s => `<option value="${s.replace(/"/g,'&quot;')}" ${s===lanjutModalSarFilter?'selected':''}>${s} (${lanjutModalRows.filter(d=>d.sar===s).length})</option>`).join('')}
+      </select>
+      <span style="font-size:12px;color:var(--text3);margin-left:auto;">${filtered.length.toLocaleString()} orang</span>
+    </div>
+    <div class="table-wrap" style="max-height:50vh;overflow-y:auto;">
+      <table style="min-width:640px;">
+        <thead><tr>
+          <th>Nama Siswa</th><th>No. HP</th><th>Last Membership</th><th>SAR</th><th>Kelas</th><th>Status</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+function lanjutModalSetSar(sar) {
+  lanjutModalSarFilter = sar;
+  renderLanjutModalBody();
+}
+
+// ─── M Label chart ────────────────────────────────────────────────────────────
+function renderLanjutMLabelChart(data) {
+  const mLabels = ['M0','M-1','M-2'];
+  const counts  = mLabels.map(m => data.filter(d => d.mLabel === m).length);
+  const retained= mLabels.map(m => data.filter(d => d.mLabel === m && d.retained).length);
+  const rates   = mLabels.map((m, i) => counts[i] ? Math.round(retained[i] / counts[i] * 100) : 0);
+
+  mkChart('lanjutMLabelChart','bar', mLabels, [
+    { label: 'Total Lanjut', data: counts,   backgroundColor: '#bfdbfe', borderRadius: 5, borderWidth: 0, order: 2 },
+    { label: 'Retained',     data: retained, backgroundColor: '#0d9e5c', borderRadius: 5, borderWidth: 0, order: 2 },
+    { type: 'line', label: 'Conversion %', data: rates, borderColor: '#7c3aed', borderWidth: 2.5,
+      pointRadius: 5, pointBackgroundColor: '#7c3aed', pointBorderColor: '#fff', pointBorderWidth: 2,
+      fill: false, tension: 0, yAxisID: 'yPct', order: 1 },
+  ], {
+    scales: {
+      y:    { beginAtZero: true, ticks: { color: '#9ba3bd' }, grid: { color: 'rgba(0,0,0,0.04)' } },
+      yPct: { position: 'right', min: 0, max: 100, ticks: { color: '#7c3aed', callback: v => v + '%' }, grid: { display: false } },
+      x:    { ticks: { color: '#9ba3bd' }, grid: { display: false } },
+    },
+    plugins: {
+      legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 10, padding: 12 } },
+      tooltip: { callbacks: { label: ctx => ctx.dataset.label === 'Conversion %' ? ` ${ctx.parsed.y}%` : ` ${ctx.dataset.label}: ${ctx.parsed.y}` } }
+    }
+  });
+
+  document.getElementById('lanjutMLabelLeg').innerHTML = mLabels.map((m, i) =>
+    `<span class="leg-item"><span class="leg-dot" style="background:#0d9e5c;"></span>${m}: <strong>${retained[i]}</strong>/${counts[i]} (${rates[i]}%)</span>`
+  ).join('');
+}
+
+// ─── Branch chart ─────────────────────────────────────────────────────────────
+function renderLanjutBranchChart(data) {
+  const branches  = [...new Set(data.map(d => d.branch).filter(Boolean))].sort();
+  const totals    = branches.map(b => data.filter(d => d.branch === b).length);
+  const retains   = branches.map(b => data.filter(d => d.branch === b && d.retained).length);
+  const rates     = branches.map((b, i) => totals[i] ? Math.round(retains[i] / totals[i] * 100) : 0);
+
+  mkChart('lanjutBranchChart', 'bar', branches, [
+    { label: 'Total',    data: totals,  backgroundColor: '#bfdbfe', borderRadius: 4, borderWidth: 0, order: 2 },
+    { label: 'Retained', data: retains, backgroundColor: '#0d9e5c', borderRadius: 4, borderWidth: 0, order: 2 },
+    { type: 'line', label: 'Conv%', data: rates, borderColor: '#e03131', borderWidth: 2,
+      pointRadius: 4, pointBackgroundColor: '#e03131', pointBorderColor: '#fff', pointBorderWidth: 1.5,
+      fill: false, tension: 0.3, yAxisID: 'yPct', order: 1 },
+  ], {
+    scales: {
+      y:    { beginAtZero: true, ticks: { color: '#9ba3bd' }, grid: { color: 'rgba(0,0,0,0.04)' } },
+      yPct: { position: 'right', min: 0, max: 100, ticks: { color: '#e03131', callback: v => v + '%' }, grid: { display: false } },
+      x:    { ticks: { color: '#9ba3bd', font: { size: 11 } }, grid: { display: false } },
+    },
+    plugins: {
+      legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 10, padding: 10 } },
+      tooltip: { callbacks: { label: ctx => ctx.dataset.label === 'Conv%' ? ` ${ctx.parsed.y}%` : ` ${ctx.dataset.label}: ${ctx.parsed.y}` } }
+    }
+  });
+}
+
+// ─── Trend chart (by expiry month) ────────────────────────────────────────────
+function renderLanjutTrendChart(data) {
+  const months = [...new Set(data.map(d => d.expiryMonthLabel).filter(Boolean))]
+    .sort((a, b) => monthLabelToSortKey(a) - monthLabelToSortKey(b));
+  const totals  = months.map(m => data.filter(d => d.expiryMonthLabel === m).length);
+  const retains = months.map(m => data.filter(d => d.expiryMonthLabel === m && d.retained).length);
+  const rates   = months.map((m, i) => totals[i] ? Math.round(retains[i] / totals[i] * 100) : 0);
+
+  mkChart('lanjutTrendChart', 'line', months, [
+    { label: 'Conversion %', data: rates, borderColor: '#0d9e5c', backgroundColor: 'rgba(13,158,92,0.12)',
+      borderWidth: 2.5, pointRadius: 5, pointBackgroundColor: '#0d9e5c', pointBorderColor: '#fff',
+      pointBorderWidth: 2, fill: true, tension: 0.3 },
+    { label: 'Total Lanjut', data: totals, borderColor: '#2563eb', backgroundColor: 'transparent',
+      borderWidth: 1.5, pointRadius: 3, pointBackgroundColor: '#2563eb', fill: false,
+      tension: 0.3, borderDash: [5, 4], yAxisID: 'yCount' },
+  ], {
+    scales: {
+      y:      { min: 0, max: 100, ticks: { color: '#0d9e5c', callback: v => v + '%' }, grid: { color: 'rgba(0,0,0,0.04)' } },
+      yCount: { position: 'right', beginAtZero: true, ticks: { color: '#2563eb' }, grid: { display: false } },
+      x:      { ticks: { color: '#9ba3bd', font: { size: 11 } }, grid: { display: false } },
+    },
+    plugins: {
+      legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 10, padding: 12 } },
+      tooltip: { callbacks: { label: ctx => ctx.dataset.label === 'Conversion %'
+        ? ` ${ctx.parsed.y}% (${retains[ctx.dataIndex]}/${totals[ctx.dataIndex]})`
+        : ` ${ctx.dataset.label}: ${ctx.parsed.y}` } }
+    }
+  });
+}
+
+// ─── Per-SAR cards (SAR view) ────────────────────────────────────────────────
+function renderLanjutSAR(data) {
+  const sarMap = {};
+  data.forEach(d => {
+    if (!d.sar) return;
+    const key = normName(d.sar);
+    if (!sarMap[key]) sarMap[key] = { name: d.sar, total: 0, retained: 0, byM: {}, branches: new Set() };
+    const s = sarMap[key];
+    s.total++;
+    if (d.retained) s.retained++;
+    s.branches.add(d.branch);
+    if (!s.byM[d.mLabel]) s.byM[d.mLabel] = { total: 0, retained: 0 };
+    s.byM[d.mLabel].total++;
+    if (d.retained) s.byM[d.mLabel].retained++;
+  });
+
+  const sars = Object.values(sarMap).map(s => ({
+    ...s,
+    rate: s.total ? Math.round(s.retained / s.total * 100) : 0,
+    key: normName(s.name),
+  })).sort((a, b) => {
+    if (lanjutSortKey === 'rate')     return lanjutSortDir * (b.rate - a.rate);
+    if (lanjutSortKey === 'total')    return lanjutSortDir * (b.total - a.total);
+    if (lanjutSortKey === 'retained') return lanjutSortDir * (b.retained - a.retained);
+    return 0;
+  });
+
+  const note = document.getElementById('lanjutNote');
+  if (!sars.length) {
+    note.style.display = 'block';
+    note.textContent = 'Tidak ada SAR dengan data Lanjut di filter ini.';
+    document.getElementById('lanjutSARGrid').innerHTML = '';
+    return;
+  }
+  note.style.display = 'none';
+
+  const avatarColors = ['#0d9e5c','#2563eb','#7c3aed','#d97706','#e03131','#0891b2','#84cc16'];
+
+  document.getElementById('lanjutSARGrid').innerHTML = sars.map((s, idx) => {
+    const rateColor = s.rate >= 70 ? 'var(--green)' : s.rate >= 50 ? 'var(--amber)' : 'var(--red)';
+    const mRows = ['M0','M-1','M-2'].map(m => {
+      const mb = s.byM[m];
+      if (!mb || !mb.total) return '';
+      const mr = Math.round(mb.retained / mb.total * 100);
+      return `<div class="sa-row"><span>${m}</span><span style="color:${mr>=70?'var(--green)':mr>=50?'var(--amber)':'var(--red)'};">${mb.retained}/${mb.total} (${mr}%)</span></div>`;
+    }).filter(Boolean).join('');
+
+    const initials = s.name.split(/[\s-]/)[0].slice(0, 2).toUpperCase();
+    const bgColor  = avatarColors[idx % avatarColors.length];
+
+    return `<div class="sa-card fade-in">
+      <div class="sa-avatar" style="background:${bgColor};">${initials}</div>
+      <div class="sa-name">${s.name}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">${[...s.branches].sort().join(', ')}</div>
+      <div style="font-family:'DM Sans',sans-serif;font-size:28px;font-weight:800;color:${rateColor};letter-spacing:-1px;margin-bottom:4px;">${s.rate}%</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Conversion Rate (${s.retained}/${s.total})</div>
+      <div class="sa-stats">${mRows || '<div class="sa-row"><span style="color:var(--text3);">Tidak ada breakdown M label</span></div>'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Per-Branch table ─────────────────────────────────────────────────────────
+function lanjutSortBy(key) {
+  if (lanjutSortKey === key) lanjutSortDir *= -1;
+  else { lanjutSortKey = key; lanjutSortDir = -1; }
+  renderLanjutBranchTable(getLanjutFiltered());
+}
+
+function renderLanjutBranchTable(data) {
+  const branches = [...new Set(data.map(d => d.branch).filter(Boolean))].sort();
+  const rows = branches.map(b => {
+    const sub  = data.filter(d => d.branch === b);
+    const ret  = sub.filter(d => d.retained).length;
+    const rate = sub.length ? Math.round(ret / sub.length * 100) : 0;
+    const mRate = m => {
+      const ms = sub.filter(d => d.mLabel === m);
+      return ms.length ? Math.round(ms.filter(d => d.retained).length / ms.length * 100) : null;
+    };
+    return { branch: b, total: sub.length, retained: ret, churned: sub.length - ret, rate, m0: mRate('M0'), m1: mRate('M-1'), m2: mRate('M-2') };
+  });
+
+  rows.sort((a, b) => {
+    const av = a[lanjutSortKey] ?? -1, bv = b[lanjutSortKey] ?? -1;
+    if (typeof av === 'string') return lanjutSortDir * av.localeCompare(bv);
+    return lanjutSortDir * (av - bv);
+  });
+
+  const mPill = v => {
+    if (v === null) return '<span style="color:var(--text3);">—</span>';
+    const c = v >= 70 ? 'pill-green' : v >= 50 ? 'pill-amber' : 'pill-red';
+    return `<span class="pill ${c}">${v}%</span>`;
+  };
+
+  document.getElementById('lanjutBranchBody').innerHTML = rows.map(r => `<tr>
+    <td><strong>${r.branch}</strong> <span style="font-size:11px;color:var(--text3);">${BRANCH_NAMES[r.branch]||''}</span></td>
+    <td>${r.total}</td>
+    <td style="color:var(--green);font-weight:700;">${r.retained}</td>
+    <td style="color:var(--red);font-weight:700;">${r.churned}</td>
+    <td>${mPill(r.rate)}</td>
+    <td>${mPill(r.m0)}</td>
+    <td>${mPill(r.m1)}</td>
+    <td>${mPill(r.m2)}</td>
+  </tr>`).join('');
+}
+
+// ─── Raw log table ────────────────────────────────────────────────────────────
+function lanjutLogSort(key) {
+  if (lanjutLogSortKey === key) lanjutLogSortDir *= -1;
+  else { lanjutLogSortKey = key; lanjutLogSortDir = -1; }
+  lanjutLogPage = 1;
+  renderLanjutLog();
+}
+
+function renderLanjutLog() {
+  const q = (document.getElementById('lSearch')?.value || '').toLowerCase();
+  let rows = LANJUT_ALL.filter(d =>
+    !q || d.phone.includes(q) || (d.sar || '').toLowerCase().includes(q) || (d.branch || '').toLowerCase().includes(q)
+  );
+
+  rows.sort((a, b) => {
+    if (lanjutLogSortKey === 'expiryDate') {
+      const av = a.expiryDate?.getTime() ?? 0, bv = b.expiryDate?.getTime() ?? 0;
+      return lanjutLogSortDir * (bv - av);
+    }
+    const av = a[lanjutLogSortKey] || '', bv = b[lanjutLogSortKey] || '';
+    if (lanjutLogSortKey === 'retained') return lanjutLogSortDir * ((b.retained ? 1 : 0) - (a.retained ? 1 : 0));
+    return lanjutLogSortDir * av.localeCompare(bv);
+  });
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / LANJUT_PAGE_SIZE));
+  if (lanjutLogPage > totalPages) lanjutLogPage = 1;
+  const start = (lanjutLogPage - 1) * LANJUT_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + LANJUT_PAGE_SIZE);
+
+  document.getElementById('lanjutLogBody').innerHTML = pageRows.map(d => {
+    const retPill = d.retained
+      ? `<span class="pill pill-green">✅ Retained</span>`
+      : `<span class="pill pill-red">❌ Churn</span>`;
+    const mColor = d.mLabel === 'M0' ? 'var(--green)' : d.mLabel === 'M-1' ? 'var(--blue)' : 'var(--amber)';
+    return `<tr>
+      <td class="muted" style="font-size:12px;">${d.phone}</td>
+      <td><strong>${d.branch}</strong></td>
+      <td>${d.sar || '—'}</td>
+      <td class="muted">${d.fillDate || '—'}</td>
+      <td class="muted">${d.expiry || '—'}</td>
+      <td><span class="pill pill-blue" style="background:transparent;color:${mColor};border:1.5px solid ${mColor};">${d.mLabel || '—'}</span></td>
+      <td>${retPill}</td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  const end = Math.min(lanjutLogPage * LANJUT_PAGE_SIZE, rows.length);
+  const range = [];
+  for (let i = Math.max(1, lanjutLogPage - 2); i <= Math.min(totalPages, lanjutLogPage + 2); i++) range.push(i);
+  let btns = '';
+  if (range[0] > 1) { btns += `<button class="pag-btn" onclick="lanjutLogGoPage(1)">1</button>`; if (range[0] > 2) btns += `<span style="padding:0 4px;color:var(--text3)">…</span>`; }
+  range.forEach(i => { btns += `<button class="pag-btn ${i === lanjutLogPage ? 'active' : ''}" onclick="lanjutLogGoPage(${i})">${i}</button>`; });
+  if (range[range.length-1] < totalPages) { if (range[range.length-1] < totalPages-1) btns += `<span style="padding:0 4px;color:var(--text3)">…</span>`; btns += `<button class="pag-btn" onclick="lanjutLogGoPage(${totalPages})">${totalPages}</button>`; }
+
+  document.getElementById('lanjutLogPag').innerHTML = `
+    <span class="pag-info">${start+1}–${end} dari ${rows.length.toLocaleString()}</span>
+    <div class="pag-btns">
+      <button class="pag-btn" onclick="lanjutLogGoPage(${lanjutLogPage-1})" ${lanjutLogPage===1?'disabled':''}>‹</button>
+      ${btns}
+      <button class="pag-btn" onclick="lanjutLogGoPage(${lanjutLogPage+1})" ${lanjutLogPage===totalPages?'disabled':''}>›</button>
+    </div>`;
+}
+
+function lanjutLogGoPage(p) {
+  lanjutLogPage = p;
+  renderLanjutLog();
+  window.scrollTo(0, document.getElementById('lanjutLogView').offsetTop - 80);
+}
+
+// Filters are initialized in renderLanjut on first call
+let lanjutFiltersInited = false;
+
+function renderLanjut() {
+  if (!lanjutLoaded || !LANJUT_ALL.length) {
+    document.getElementById('lanjutEmpty').style.display = 'block';
+    document.getElementById('lanjutSub').textContent = 'Belum ada data.';
+    return;
+  }
+  document.getElementById('lanjutEmpty').style.display = 'none';
+
+  if (!lanjutFiltersInited) {
+    initLanjutFilters();
+    lanjutFiltersInited = true;
+  }
+
+  const data = getLanjutFiltered();
+
+  renderLanjutMetrics(data);
+  renderLanjutMLabelChart(data);
+  renderLanjutBranchChart(data);
+  renderLanjutTrendChart(data);
+
+  document.getElementById('lanjutSub').textContent =
+    `${LANJUT_ALL.length.toLocaleString()} entri log · ${data.length.toLocaleString()} setelah filter`;
+
+  if (lanjutView === 'sar')    renderLanjutSAR(data);
+  if (lanjutView === 'branch') renderLanjutBranchTable(data);
+  if (lanjutView === 'log')    renderLanjutLog();
 }
 
 // =====================================================================
@@ -2653,6 +3187,7 @@ function showPage(id, btn) {
   if (id==='sa'       && ALL.length) renderSA();
   if (id==='center'   && ALL.length) renderCenterPerf();
   if (id==='qa'       && QA_ALL.length) renderQA();
+  if (id==='lanjut') { if (!lanjutLoaded) loadLanjutLog(); else renderLanjut(); }
 }
 
 // =====================================================================
