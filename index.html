@@ -2667,13 +2667,21 @@ function setLanjutView(view) {
   }
 }
 
+// ─── SAR Dictionary active-status check (shared with SA Performance page) ──
+function isSarActive(sarName) {
+  if (!sarName) return false;
+  const rec = SAR_MAP[normName(sarName)];
+  return !!rec && rec.status.toLowerCase().startsWith('active');
+}
+
 // ─── KPI metrics ──────────────────────────────────────────────────────────────
 function renderLanjutMetrics(data) {
   const total    = data.length;
   const retained = data.filter(d => d.retained).length;
   const churned  = total - retained;
   const rate     = total ? Math.round(retained / total * 100) : 0;
-  const sarsSet  = new Set(data.map(d => d.sar).filter(Boolean));
+  const sarsSet     = new Set(data.map(d => d.sar).filter(Boolean));
+  const activeSars  = [...sarsSet].filter(isSarActive);
   const branchSet= new Set(data.map(d => d.branch).filter(Boolean));
 
   // M-label breakdown
@@ -2703,7 +2711,7 @@ function renderLanjutMetrics(data) {
       <div class="mc-label">Conversion Rate</div>
       <div class="mc-sub">Lanjut → Paid Retention</div>
     </div>
-    <div class="mc c-purple fade-in"><div class="mc-icon">👤</div><div class="mc-val">${sarsSet.size}</div><div class="mc-label">SAR Aktif di Log</div><div class="mc-sub">${branchSet.size} branch terlibat</div></div>`;
+    <div class="mc c-purple fade-in"><div class="mc-icon">👤</div><div class="mc-val">${activeSars.length}</div><div class="mc-label">SAR Aktif di Log</div><div class="mc-sub">${branchSet.size} branch terlibat · ${sarsSet.size} total (termasuk non-active)</div></div>`;
 
   renderLanjutStatusBreakdown(data);
 }
@@ -2762,7 +2770,9 @@ function openLanjutDetailModal(retainedValue) {
 }
 
 function renderLanjutModalBody() {
-  const sars = [...new Set(lanjutModalRows.map(d => d.sar).filter(Boolean))].sort();
+  const sars = [...new Set(lanjutModalRows.map(d => d.sar).filter(Boolean))]
+    .filter(isSarActive)
+    .sort();
   const filtered = lanjutModalSarFilter
     ? lanjutModalRows.filter(d => d.sar === lanjutModalSarFilter)
     : lanjutModalRows;
