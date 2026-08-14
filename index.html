@@ -2253,7 +2253,7 @@ function renderCenterPerf() {
 
   const branchMap = {};
   data.forEach(d => {
-    if (!branchMap[d.branch]) branchMap[d.branch] = { branch: d.branch, total: 0, paid: 0, churned: 0, unsure: 0, confirmRetain: 0, confirmChurn: 0, statusCounts: {}, sars: new Set() };
+    if (!branchMap[d.branch]) branchMap[d.branch] = { branch: d.branch, total: 0, paid: 0, churned: 0, unsure: 0, confirmRetain: 0, confirmChurn: 0, dropCantRetain: 0, statusCounts: {}, sars: new Set() };
     const b = branchMap[d.branch];
     b.total++;
     const rawStatus = (d.ret_status || '').trim();
@@ -2262,6 +2262,7 @@ function renderCenterPerf() {
     if (status === 'churned') b.churned++;
     else if (status === 'confirmed to retain (not paid yet)') b.confirmRetain++;
     else if (status === 'confirmed to churn (still possible to retain)') b.confirmChurn++;
+    else if (status === 'drop - can not retain') b.dropCantRetain++;
     else if (!isPaid(d)) b.unsure++;
     if (d.sa_ret) {
       const e = SA_ELIGIBILITY[normName(d.sa_ret)];
@@ -2286,7 +2287,7 @@ function renderCenterPerf() {
   else centers.sort((a, b) => b.rate - a.rate);
 
   document.getElementById('centerNote').textContent =
-    'Retained/Churned menggunakan definisi yang sama dengan halaman Dashboard. Undecided sekarang hanya mencakup Still Unsure / Asked - Still No Response / Not Yet Been Asked / belum diisi — Confirmed to Retain (not paid yet) dan Confirmed to Churn (still possible to retain) dipisah jadi kategori sendiri. Gunakan dropdown "Urutkan" untuk melihat center mana yang punya jumlah status tertentu (mis. Still Unsure) terbanyak. Klik "Lihat Detail" untuk breakdown status lengkap.';
+    'Retained/Churned menggunakan definisi yang sama dengan halaman Dashboard. Undecided sekarang hanya mencakup Still Unsure / Asked - Still No Response / Not Yet Been Asked / belum diisi — Confirmed to Retain (not paid yet), Confirmed to Churn (still possible to retain), dan Drop - Can Not Retain masing-masing dipisah jadi kategori sendiri. Gunakan dropdown "Urutkan" untuk melihat center mana yang punya jumlah status tertentu (mis. Still Unsure) terbanyak. Klik "Lihat Detail" untuk breakdown status lengkap.';
 
   document.getElementById('centerGrid').innerHTML = centers.map(c => {
     const rateColor = c.rate>=35?'var(--green)':c.rate>=30?'var(--amber)':c.rate>=25?'#f97316':'var(--red)';
@@ -2295,7 +2296,7 @@ function renderCenterPerf() {
     // dedicated stat rows above (Churned / Confirmed to Retain / Confirmed
     // to Churn) — only show it for statuses otherwise hidden inside the
     // lumped "Undecided" bucket (Still unsure, Asked - still no response, etc.).
-    const ALREADY_SHOWN = ['churned', 'confirmed to retain (not paid yet)', 'confirmed to churn (still possible to retain)'];
+    const ALREADY_SHOWN = ['churned', 'confirmed to retain (not paid yet)', 'confirmed to churn (still possible to retain)', 'drop - can not retain'];
     const sortStatusRow = (sortStatus && !ALREADY_SHOWN.includes(sortStatus.toLowerCase()))
       ? `<div class="sa-row" style="font-weight:800;border-top:1px dashed var(--border);padding-top:6px;margin-top:2px;"><span>${sortStatus}</span><span>${c.statusCounts[sortStatus] || 0}</span></div>`
       : '';
@@ -2319,6 +2320,7 @@ function renderCenterPerf() {
         <div class="sa-row"><span>Undecided</span><span style="color:var(--amber);">${c.unsure}</span></div>
         <div class="sa-row"><span>Confirmed to Retain</span><span style="color:var(--blue);">${c.confirmRetain}</span></div>
         <div class="sa-row"><span>Confirmed to Churn</span><span style="color:var(--purple);">${c.confirmChurn}</span></div>
+        <div class="sa-row"><span>Drop - Can Not Retain</span><span style="color:#0891b2;">${c.dropCantRetain}</span></div>
         ${sortStatusRow}
       </div>
       <button class="sa-detail-btn" onclick="event.stopPropagation();openCenterDetail('${c.branch}')">📊 Lihat Detail</button>
@@ -2328,8 +2330,8 @@ function renderCenterPerf() {
   // Canvases only exist after the innerHTML assignment above, so charts
   // are created in a second pass.
   centers.forEach(c => {
-    mkChart(`centerChart_${c.branch}`, 'doughnut', ['Retained','Not Retained','Undecided','Confirmed to Retain','Confirmed to Churn'],
-      [{ data: [c.paid, c.churned, c.unsure, c.confirmRetain, c.confirmChurn], backgroundColor: ['#0d9e5c','#e03131','#d97706','#2563eb','#7c3aed'], borderWidth: 0, hoverOffset: 3 }],
+    mkChart(`centerChart_${c.branch}`, 'doughnut', ['Retained','Not Retained','Undecided','Confirmed to Retain','Confirmed to Churn','Drop - Can Not Retain'],
+      [{ data: [c.paid, c.churned, c.unsure, c.confirmRetain, c.confirmChurn, c.dropCantRetain], backgroundColor: ['#0d9e5c','#e03131','#d97706','#2563eb','#7c3aed','#0891b2'], borderWidth: 0, hoverOffset: 3 }],
       { cutout: '60%' });
   });
 }
