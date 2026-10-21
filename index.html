@@ -626,16 +626,19 @@ const TODAY = new Date();
 // =====================================================================
 // GOOGLE SHEETS URLS
 // =====================================================================
-// "All Retention Database" workbook — holds both the main retention data
-// (Compiled Retention tab) and the SAR Dictionary tab.
+// "All Retention Database" workbook — masih dipakai untuk tab SAR Dictionary.
 const RETENTION_WORKBOOK_ID = '1gGYi_MnlQgNpv1u8JeNCPicgP54utpv3Ue3wPWb3cQ0';
 
-// Main retention database — the "Compiled Retention" tab specifically.
-// Previously pointed at a stale "Publish to web" link for a different tab
-// (wrong column layout — FP Date/FP Amount weren't even where expected).
+// Main retention database — tab "Compiled Retention" sekarang di workbook BARU
+// (dipindah supaya lebih ringan / tidak timeout). Isi tab sebaiknya values only.
 // Loaded by gid, which is stable across tab renames.
-const MAIN_SHEET_GID = '909854396';
-const MAIN_CSV = `https://docs.google.com/spreadsheets/d/${RETENTION_WORKBOOK_ID}/gviz/tq?tqx=out:csv&gid=${MAIN_SHEET_GID}`;
+const MAIN_WORKBOOK_ID = '1ZFpTDc_HcFpvfS_2ssosEGWKJnYqLUN884HHdN6qekY';
+const MAIN_SHEET_GID = '862273356';
+const MAIN_CSV = `https://docs.google.com/spreadsheets/d/${MAIN_WORKBOOK_ID}/gviz/tq?tqx=out:csv&gid=${MAIN_SHEET_GID}`;
+// Fallback: export CSV langsung (tidak lewat gviz, biasanya lebih cepat untuk tab besar)
+const MAIN_EXPORT_CSV = `https://docs.google.com/spreadsheets/d/${MAIN_WORKBOOK_ID}/export?format=csv&gid=${MAIN_SHEET_GID}`;
+// Fallback kedua: pub CSV (kalau workbook di-"Publish to web")
+const MAIN_PUB_CSV = `https://docs.google.com/spreadsheets/d/${MAIN_WORKBOOK_ID}/pub?gid=${MAIN_SHEET_GID}&output=csv`;
 
 // SAR Dictionary — the original "[Automated] SAR Database" sheet
 // (1OGZnco...) is not shared for anonymous CSV export, so we instead read
@@ -860,23 +863,39 @@ function withTimeout(startFn, onSettle) {
 }
 
 function loadMainSheet() {
-  withTimeout(
-    done => Papa.parse(MAIN_CSV, {
-      download: true, skipEmptyLines: true,
-      complete(res) { done({ ok: true, res }); },
-      error()       { done({ ok: false }); }
-    }),
-    outcome => {
-      if (outcome.timedOut) {
-        console.warn(`Main sheet fetch timed out after ${LOAD_TIMEOUT_MS/1000}s — the sheet may no longer be shared as "Anyone with the link."`);
+  // Coba beberapa URL berurutan: gviz -> export -> pub
+  const urls = [MAIN_CSV, MAIN_EXPORT_CSV, MAIN_PUB_CSV];
+  let anyTimedOut = false;
+  const tryNext = (i) => {
+    if (i >= urls.length) {
+      if (anyTimedOut) {
         showUploadFallback('Google Sheets tidak merespons (timeout). Cek pengaturan share sheet, atau upload manual.');
-      } else if (!outcome.ok) {
-        showUploadFallback('Tidak bisa memuat dari Google Sheets. Coba upload manual.');
       } else {
-        processMainRows(outcome.res.data);
+        showUploadFallback('Tidak bisa memuat dari Google Sheets. Coba upload manual.');
       }
+      return;
     }
-  );
+    withTimeout(
+      done => Papa.parse(urls[i], {
+        download: true, skipEmptyLines: true,
+        complete(res) { done({ ok: true, res }); },
+        error()       { done({ ok: false }); }
+      }),
+      outcome => {
+        if (outcome.timedOut) {
+          anyTimedOut = true;
+          console.warn(`Main sheet fetch timed out after ${LOAD_TIMEOUT_MS/1000}s for URL: ${urls[i]}`);
+          tryNext(i + 1);
+        } else if (!outcome.ok || !outcome.res || !outcome.res.data || outcome.res.data.length < 2) {
+          console.warn(`Main sheet fetch failed/empty for URL: ${urls[i]}`);
+          tryNext(i + 1);
+        } else {
+          processMainRows(outcome.res.data);
+        }
+      }
+    );
+  };
+  tryNext(0);
 }
 
 // Try multiple URL variants for the SAR sheet
