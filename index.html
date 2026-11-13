@@ -2066,10 +2066,10 @@ function renderSA() {
       : `<div class="sa-note">👁️ Menampilkan <strong>semua SA</strong> (termasuk yang tidak aktif / belum 3 bulan). <strong>${hiddenCount}</strong> di antaranya tidak eligible untuk leaderboard resmi.</div>`;
 
   const tierDefs = [
-    {cls:'tier-top',      icon:'🏆', title:'Top Performer',    badge:'RR ≥ 35%',   filter:sa=>sa.rate>=35},
-    {cls:'tier-mid',      icon:'📈', title:'Mid Performer',    badge:'RR 30–34%',  filter:sa=>sa.rate>=30&&sa.rate<35},
-    {cls:'tier-low',      icon:'⚠️', title:'Low Performer',    badge:'RR 25–29%',  filter:sa=>sa.rate>=25&&sa.rate<30},
-    {cls:'tier-critical', icon:'🚨', title:'Special Attention',badge:'RR < 25%',   filter:sa=>sa.rate<25},
+    {cls:'tier-top',      icon:'🏆', title:'Top Performer',    badge:'RR ≥ 37%',   filter:sa=>sa.rate>=37},
+    {cls:'tier-mid',      icon:'📈', title:'Mid Performer',    badge:'RR 32–36%',  filter:sa=>sa.rate>=32&&sa.rate<37},
+    {cls:'tier-low',      icon:'⚠️', title:'Low Performer',    badge:'RR 27–31%',  filter:sa=>sa.rate>=27&&sa.rate<32},
+    {cls:'tier-critical', icon:'🚨', title:'Special Attention',badge:'RR < 27%',   filter:sa=>sa.rate<27},
   ];
 
   const avatarColors = ['#0d9e5c','#2563eb','#e03131','#d97706','#7c3aed','#e8440c','#0891b2','#16a34a'];
@@ -2077,7 +2077,7 @@ function renderSA() {
   const saCard = (sa, i) => {
     const color    = avatarColors[i % avatarColors.length];
     const initials = sa.name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
-    const rateColor = sa.rate>=35?'var(--green)':sa.rate>=30?'var(--amber)':sa.rate>=25?'#f97316':'var(--red)';
+    const rateColor = sa.rate>=37?'var(--green)':sa.rate>=32?'var(--amber)':sa.rate>=27?'#f97316':'var(--red)';
     const safeKey   = sa.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<div class="sa-card">
       <div class="sa-avatar" style="background:${color};">${initials}</div>
@@ -2125,7 +2125,7 @@ function renderSALeaderboard(eligibleSA) {
   document.getElementById('saLeaderboardBody').innerHTML = rows.map((sa,i) => {
     const responded = sa.paid + sa.churned;
     const respPct = responded ? Math.round(sa.paid/responded*100) : 0;
-    const rateColor = sa.rate>=35?'var(--green)':sa.rate>=30?'var(--amber)':sa.rate>=25?'#f97316':'var(--red)';
+    const rateColor = sa.rate>=37?'var(--green)':sa.rate>=32?'var(--amber)':sa.rate>=27?'#f97316':'var(--red)';
     const safeKey = sa.key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<tr onclick="openSADetail('${safeKey}')">
       <td class="muted">${i+1}</td>
